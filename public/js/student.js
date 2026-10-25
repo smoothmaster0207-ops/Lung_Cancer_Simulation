@@ -12,6 +12,40 @@
   let manualDecisionOpen = false;
   const draftRationales = {}; // Sceneごとの入力中テキスト保持（再描画時消失防止）
   const draftMultiDecisions = {}; // Scene 3 の選択中チェック保持
+  const shuffledItemIdsByScene = {}; // Sceneごとのカード表示順保持（重要な情報と優先度の低い情報をランダム混在表示）
+
+  function getDisplayInfoItems(sceneDef, sceneId) {
+    const items = sceneDef?.infoItems || [];
+    if (!sceneDef?.shuffleItems || items.length <= 1) {
+      return items;
+    }
+    const storageKey = `lcs_shuffled_scene_${sceneId}`;
+    let order = shuffledItemIdsByScene[sceneId];
+    if (!order) {
+      try {
+        const saved = sessionStorage.getItem(storageKey);
+        if (saved) order = JSON.parse(saved);
+      } catch (e) {}
+    }
+    const currentIds = items.map(it => it.id);
+    if (!Array.isArray(order) || order.length !== currentIds.length || !currentIds.every(id => order.includes(id))) {
+      // Fisher-Yates シャッフルで重要な情報と優先度の低い情報をランダムに混在させる
+      order = [...currentIds];
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      shuffledItemIdsByScene[sceneId] = order;
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(order));
+      } catch (e) {}
+    } else {
+      shuffledItemIdsByScene[sceneId] = order;
+    }
+    const itemMap = {};
+    items.forEach(it => { itemMap[it.id] = it; });
+    return order.map(id => itemMap[id]).filter(Boolean);
+  }
 
   // 患者アバターSVG（肺がん周術期看護仕様）
   const avatars = {
@@ -151,6 +185,10 @@
       manualDecisionOpen = false;
       Object.keys(draftRationales).forEach(k => delete draftRationales[k]);
       Object.keys(draftMultiDecisions).forEach(k => delete draftMultiDecisions[k]);
+      Object.keys(shuffledItemIdsByScene).forEach(k => {
+        delete shuffledItemIdsByScene[k];
+        try { sessionStorage.removeItem(`lcs_shuffled_scene_${k}`); } catch (e) {}
+      });
       showScreen('screen-register');
     });
   }
@@ -432,12 +470,13 @@
     // 情報選択肢カード一覧
     const infoHeading = document.getElementById('info-selection-heading');
     if (infoHeading) {
-      if (currentSid === 1) infoHeading.textContent = '患者情報カード（呼吸機能のアセスメントに重要だと考えるカードを選択してください）';
+      if (currentSid === 1) infoHeading.textContent = '患者情報カード（全16項目から、術後の呼吸機能予測に重要な8項目を選択してください）';
       else if (currentSid === 2) infoHeading.textContent = '追加で観察・確認したい項目を選択してください（安全確認のため制限なく確認可能）';
       else if (currentSid === 3) infoHeading.textContent = '所見の解釈・基礎知識カード（必要に応じてクリックして確認できます）';
       else infoHeading.textContent = '初回離床を判断するために重要な情報を確認してください';
     }
-    renderInfoItems(sceneDef.infoItems, sceneState.selectedInfo, sceneState.remainingBudget);
+    const displayInfoItems = getDisplayInfoItems(sceneDef, currentSid);
+    renderInfoItems(displayInfoItems, sceneState.selectedInfo, sceneState.remainingBudget);
 
     // 取得済み情報と意味づけ解説の蓄積リスト
     renderCollectedInfo(sceneDef.infoItems, sceneState.selectedInfo, currentSid);

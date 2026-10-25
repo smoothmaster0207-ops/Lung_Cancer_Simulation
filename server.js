@@ -315,7 +315,18 @@ function evaluateSceneResult(sceneId, selectedInfo, decision, rationaleText = ''
   // ================= SCENE 1：BEFORE（術前呼吸機能のアセスメント） =================
   if (sid === '1') {
     const highPriorityIds = ['age_68', 'smoking_history', 'morning_sputum', 'slope_dyspnea', 'fev1_fvc_64', 'spo2_97_ra', 'vats_lul', 'ga_olv'];
-    const suppIds = ['history_ht', 'family_garden'];
+    const suppIds = ['history_ht', 'family_garden', 'hb_13_8', 'alb_4_0', 'wbc_crp_normal', 'bowel_habit_normal', 'sleep_status_normal', 'urination_status_normal'];
+
+    const suppMeaningMap = {
+      history_ht: '高血圧の既往（周術期の循環管理・血圧変動の評価に関連）',
+      family_garden: '妻との同居・家庭菜園（生活背景・退院支援の評価に関連）',
+      hb_13_8: 'Hb 13.8g/dL（貧血の有無や酸素運搬能・出血予備能の評価に関連）',
+      alb_4_0: 'Alb 4.0g/dL（栄養状態や創傷治癒・膠質浸透圧の評価に関連）',
+      wbc_crp_normal: 'WBC 6,800/μL・CRP 0.2mg/dL（術前の感染・炎症の有無や術後感染評価のベースラインに関連）',
+      bowel_habit_normal: '排便1回/日・便秘なし（麻酔・オピオイド等による術後便秘評価のベースラインに関連）',
+      sleep_status_normal: '睡眠6〜7時間・訴えなし（休息状態や術後睡眠障害・せん妄評価のベースラインに関連）',
+      urination_status_normal: '排尿5〜6回/日・排尿困難なし（排尿機能やカテーテル抜去後の尿閉リスク評価に関連）'
+    };
 
     const selectedHigh = selectedInfo.filter(id => highPriorityIds.includes(id));
     const missedHigh = highPriorityIds.filter(id => !selectedInfo.includes(id));
@@ -327,17 +338,20 @@ function evaluateSceneResult(sceneId, selectedInfo, decision, rationaleText = ''
     const strengths = [];
     const furtherPoints = [];
 
-    if (selectedHigh.length >= 6) {
-      strengths.push(`呼吸機能のアセスメントに直結する重要情報（${selectedHigh.map(id => itemMap[id]).join('、')}）を的確に選択できています。`);
+    if (selectedHigh.length === 8) {
+      strengths.push(`16項目の中から、術後呼吸機能の予測に直結する8つの重要情報（${selectedHigh.map(id => itemMap[id]).join('、')}）をすべて的確に選択できています。`);
+    } else if (selectedHigh.length >= 6) {
+      strengths.push(`呼吸機能のアセスメントに直結する重要情報（${selectedHigh.map(id => itemMap[id]).join('、')}）を中心に選択できています。`);
     } else if (selectedHigh.length >= 3) {
-      strengths.push(`選択した情報（${selectedHigh.map(id => itemMap[id]).join('、')}）の意味づけを確認し、術後リスク予測につなげています。`);
+      strengths.push(`選択した重要情報（${selectedHigh.map(id => itemMap[id]).join('、')}）の意味づけを確認し、術後リスク予測につなげています。`);
     }
 
     if (missedHigh.length > 0) {
-      furtherPoints.push(`未選択だった【${missedHigh.map(id => itemMap[id]).join('、')}】も、術後の換気低下・排痰困難・無気肺を予測するうえで重要な根拠となります。`);
+      furtherPoints.push(`未選択だった【${missedHigh.map(id => itemMap[id]).join('、')}】は、術後の換気低下・排痰困難・無気肺を予測するうえで優先度の高い情報です。`);
     }
     if (selectedSupp.length > 0) {
-      furtherPoints.push(`選択した【${selectedSupp.map(id => itemMap[id]).join('、')}】は患者の全体像や退院支援を考えるうえでは有用ですが、「術後の呼吸状態を予測する」という今回の目的においては、喫煙歴・FEV₁/FVC・術式・分離肺換気などの呼吸器関連情報の優先度がより高くなります。`);
+      const suppDetails = selectedSupp.map(id => suppMeaningMap[id] || itemMap[id]).join('、');
+      furtherPoints.push(`選択した【${suppDetails}】はそれぞれの看護アセスメントにおいて意味がある情報ですが、「術後の呼吸機能を予測する」という今回のアセスメント目的との直接的な関連性は低いため、喫煙歴・朝の喀痰・FEV₁/FVC 64％・術式・分離肺換気などの呼吸機能に直結する情報を優先して選択しましょう。`);
     }
     if (rationaleEval.matchedElements.length > 0) {
       strengths.push(`自由記述において「${rationaleEval.matchedElements.join('」「')}」の視点が含まれています。`);
