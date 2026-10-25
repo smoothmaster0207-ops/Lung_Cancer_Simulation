@@ -90,7 +90,7 @@ app.get('/admin', (req, res) => {
 
 function getSceneBudget(sceneId) {
   const sid = String(sceneId);
-  return scenarioData.scenes[sid]?.budget || 3;
+  return scenarioData.scenes[sid]?.budget || 5;
 }
 
 function createGroupState(groupId, groupName) {
@@ -117,6 +117,7 @@ function createSceneState(sceneId) {
     budget: budget,
     remainingBudget: budget,
     decision: null,
+    selectedDecisions: [], // Scene 3 (AFTER 2) 複数選択用
     rationaleText: '',
     highlightedInDebrief: false,
     submittedAt: null,
@@ -124,10 +125,23 @@ function createSceneState(sceneId) {
   };
 }
 
-// 自由記述アセスメント（rationaleText）の4水準ルーブリック評価
+// 自由記述アセスメント（rationaleText）の形成的ルーブリック評価（Scene別評価観点対応）
 function evaluateRationaleText(sceneId, rationaleText) {
   const sid = String(sceneId);
   const text = (rationaleText || '').trim();
+  const formativeNote = '※この自動評価は形成的フィードバックの補助です。キーワードの有無だけで文章の質を断定するものではなく、教員による確認と全体討議を優先します。';
+
+  // Scene 3 (AFTER 2) は複数選択式のため自由記述評価は任意メモ扱い
+  if (sid === '3') {
+    return {
+      level: text ? '記述メモあり' : '複数選択評価',
+      levelCode: 'MULTI_SELECT',
+      matchedElements: [],
+      missingHints: [],
+      feedback: text ? `記入メモ：「${text}」` : '胸腔ドレーンの複数選択アセスメントを実施しました。',
+      formativeNote
+    };
+  }
 
   if (!text) {
     return {
@@ -135,386 +149,455 @@ function evaluateRationaleText(sceneId, rationaleText) {
       levelCode: 'NONE',
       matchedElements: [],
       missingHints: ['自由記述が入力されていません。'],
-      feedback: '判断の根拠となる患者情報と病態生理を自分の言葉で記述してみましょう。'
+      feedback: '患者情報や病態生理に基づいた考えを自分の言葉で記述してみましょう。',
+      formativeNote
     };
   }
 
   const hasAny = (keywords) => keywords.some(k => text.includes(k));
 
+  // ================= SCENE 1：BEFORE（術前呼吸機能のアセスメント） =================
+  // 評価観点：患者情報の選択、意味づけ、情報間の関連づけ、術後リスク予測
   if (sid === '1') {
-    const e1 = hasAny(['喫煙', 'たばこ', 'タバコ', '白色痰', '痰', '息切れ', '64%', 'FEV', '気流閉塞', '閉塞性', '68歳', '加齢']);
-    const e2 = hasAny(['全身麻酔', '分離肺換気', '片肺', '左上葉切除', '肺切除', '肺容量', '再拡張']);
-    const e3 = hasAny(['疼痛', '痛み', '創痛', '深呼吸', '咳嗽', '咳', '抑制']);
-    const e4 = hasAny(['無気肺', '分泌物', '貯留', '換気低下', '低酸素', '合併症', '肺炎']);
+    const e1 = hasAny(['喫煙', 'たばこ', 'タバコ', '45年', '喀痰', '痰', '息切れ', '坂道', '68歳', '加齢']);
+    const e2 = hasAny(['64', 'FEV', '1秒率', '気流閉塞', '閉塞性', 'SpO2', 'SpO₂', '97', 'クリアランス', '線毛']);
+    const e3 = hasAny(['左上葉切除', '肺切除', '胸腔鏡', '肺容量', '全身麻酔', '分離肺換気', '片肺', '疼痛', '痛み', '創痛', '浅呼吸', '咳嗽']);
+    const e4 = hasAny(['無気肺', '分泌物', '貯留', '排痰', '換気低下', '低酸素', '肺炎', '合併症']);
 
     const matched = [];
     const missing = [];
-    if (e1) matched.push('患者背景（喫煙・喀痰・気流閉塞傾向）'); else missing.push('長期喫煙・白色痰・FEV₁/FVC 64%などの術前背景');
-    if (e2) matched.push('手術・麻酔要因（全身麻酔・分離肺換気・肺切除）'); else missing.push('全身麻酔・分離肺換気・左上葉切除による肺容量や再拡張への影響');
-    if (e3) matched.push('術後疼痛による深呼吸・咳嗽抑制'); else missing.push('術後疼痛によって深呼吸や有効な咳嗽が抑制される視点');
-    if (e4) matched.push('予測される術後リスク（分泌物貯留・無気肺等）'); else missing.push('分泌物貯留・肺胞換気低下・無気肺・低酸素血症などの具体的リスク');
+    if (e1) matched.push('患者情報の選択（喫煙歴・喀痰・息切れ・年齢）');
+    else missing.push('長期喫煙歴や朝の喀痰・坂道での息切れ・年齢といった患者背景');
+
+    if (e2) matched.push('検査・所見の意味づけ（FEV₁/FVC 64％による気流閉塞や線毛機能低下、安静時SpO₂ 97％の解釈）');
+    else missing.push('FEV₁/FVC 64％が示す気流閉塞や気道クリアランス低下、安静時SpO₂ 97％の意味づけ');
+
+    if (e3) matched.push('手術・麻酔・疼痛との関連づけ（左上葉切除・全身麻酔・分離肺換気・術後疼痛）');
+    else missing.push('胸腔鏡下左上葉切除術（肺容量減少）や全身麻酔・分離肺換気、術後疼痛による深呼吸・咳嗽抑制との関連づけ');
+
+    if (e4) matched.push('術後呼吸状態の予測（分泌物貯留・換気低下・無気肺・低酸素血症リスク）');
+    else missing.push('術後に予測される具体的な状態（気道分泌物貯留・肺胞換気低下・無気肺・低酸素血症など）');
 
     const count = [e1, e2, e3, e4].filter(Boolean).length;
-    let level = '知識の再生';
+    let level = 'LEVEL 1（知識の再生）';
     let levelCode = 'LEVEL_1';
-    if (count === 4 || (e1 && e3 && e4 && e2)) {
-      level = '臨床推論（高度な統合）';
+    if (count === 4) {
+      level = 'LEVEL 4（臨床推論・高度な統合）';
       levelCode = 'LEVEL_4';
-    } else if (e3 && (e1 || e2)) {
-      level = '情報の統合（病態生理の関連づけ）';
+    } else if (count === 3 || (e3 && e4 && (e1 || e2))) {
+      level = 'LEVEL 3（情報の統合・関連づけ）';
       levelCode = 'LEVEL_3';
-    } else if (e2 || (e1 && count >= 2)) {
-      level = '情報の解釈（根拠の提示）';
+    } else if (count === 2) {
+      level = 'LEVEL 2（情報の解釈・意味づけ）';
       levelCode = 'LEVEL_2';
     }
 
-    let feedback = `【記述評価：${level}】確認できた視点：${matched.join('、') || '基本的なリスク意識'}。`;
+    let feedback = `【形成的フィードバック：${level}】\n・確認できた観点：${matched.join(' ／ ') || '術後リスクへの着目'}。`;
     if (missing.length > 0) {
-      feedback += `\nさらに「${missing.join('」「')}」を関連づけると、患者背景と手術侵襲の相互作用がより明確に説明できます。`;
+      feedback += `\n・さらに深める視点：${missing.join('、')} をつなげて記述すると、患者要因と手術・麻酔要因の相互作用がより明確になります。`;
     } else {
-      feedback += `\n安静時SpO₂ 97%という現在の安定と術後リスクを明確に区別し、患者背景・手術麻酔・術後疼痛の相互作用から術後合併症を高い水準で予測できています。`;
+      feedback += `\n・患者側の呼吸器背景・検査の意味づけと、手術・麻酔・術後疼痛の影響を関連づけ、術後に予測される呼吸状態を論理的に統合できています。`;
     }
-    return { level, levelCode, matchedElements: matched, missingHints: missing, feedback };
+    return { level, levelCode, matchedElements: matched, missingHints: missing, feedback, formativeNote };
   }
 
+  // ================= SCENE 2：AFTER（術直後の呼吸状態） =================
+  // 評価観点：換気低下の認識、SpO₂の解釈、麻酔・鎮痛薬の影響、病態生理、安全性の判断
   if (sid === '2') {
-    const e1 = hasAny(['97', '93', 'SpO2', 'SpO₂', '酸素化', '低下', '悪化', '夕方', '比較']);
-    const e2 = hasAny(['呼吸数', '18', '24', '頻呼吸', '脈拍', '86', '98', '代償', '疼痛', '痛み', 'NRS']);
-    const e3 = hasAny(['無気肺', '分泌物', '痰', '換気', '気胸', 'エアリーク', '出血', '虚脱']);
-    const e4 = hasAny(['呼吸音', '聴診', '胸郭', 'ドレーン', 'X線', 'レントゲン', '重症度', '確認']);
+    const e1 = hasAny(['呼吸数', '9回', '９回', '浅', '換気低下', '低換気', '分時換気', '肺胞換気', '一回換気']);
+    const e2 = hasAny(['SpO2', 'SpO₂', '96', '酸素', '3L', '３L', '換気できているとは', '評価できない', 'マスク', '見かけ']);
+    const e3 = hasAny(['麻酔', 'オピオイド', 'PCA', '鎮痛', '呼吸抑制', '傾眠', '眠', '呼吸音', '減弱', '背側', '無気肺', '疼痛', 'NRS']);
+    const e4 = hasAny(['CO2', 'CO₂', '二酸化炭素', '蓄積', '貯留', 'ナルコーシス', '血液ガス', '安全', '再評価', '報告', '医師', '対応']);
 
     const matched = [];
     const missing = [];
-    if (e1) matched.push('時間的変化からの酸素化悪化の判断'); else missing.push('術当日夕方と比べた同酸素条件下でのSpO₂低下（97%→93%）＝酸素化悪化の明示');
-    if (e2) matched.push('頻呼吸・脈拍増加・疼痛増強の意味づけ'); else missing.push('呼吸数増加（18→24回/分）や疼痛増強（NRS 5→7）の代償反応・呼吸様式への意味づけ');
-    if (e3) matched.push('原因に関する病態仮説（換気低下・分泌物・無気肺・気胸等）'); else missing.push('酸素化が悪化した原因の仮説（分泌物貯留・無気肺・気胸など）');
-    if (e4) matched.push('仮説を検証するための情報収集の目的'); else missing.push('なぜその観察項目（呼吸音・胸郭・ドレーン・X線等）を確認するのかという目的');
+    if (e1) matched.push('換気低下の認識（呼吸数9回/分・浅呼吸からの分時/肺胞換気量低下）');
+    else missing.push('呼吸数9回/分と浅くゆっくりした呼吸から、分時換気量・肺胞換気量の低下を疑う視点');
+
+    if (e2) matched.push('SpO₂の適切な解釈（酸素投与下のSpO₂ 96％だけでは換気十分とは言えない）');
+    else missing.push('酸素3L/分投与中のSpO₂ 96％のみでは十分に換気できているとは判断できない点（酸素化と換気の違い）');
+
+    if (e3) matched.push('麻酔・鎮痛薬の影響と病態生理（呼吸抑制・傾眠傾向・疼痛・背側呼吸音減弱/無気肺）');
+    else missing.push('全身麻酔やオピオイドPCAによる呼吸抑制の可能性、および背側肺底部の呼吸音減弱・疼痛から無気肺等を考慮する病態生理');
+
+    if (e4) matched.push('安全性の判断（CO₂蓄積リスク・速やかな再評価と医師への報告・対応）');
+    else missing.push('CO₂蓄積（高二酸化炭素血症）や呼吸状態悪化のリスクを踏まえた、速やかな再評価・報告・対応の必要性');
 
     const count = [e1, e2, e3, e4].filter(Boolean).length;
-    let level = '知識の再生';
+    let level = 'LEVEL 1（知識の再生）';
     let levelCode = 'LEVEL_1';
-    if (count === 4 || (e1 && e3 && e4 && e2)) {
-      level = '臨床推論（高度な統合）';
+    if (count === 4) {
+      level = 'LEVEL 4（臨床推論・高度な統合）';
       levelCode = 'LEVEL_4';
-    } else if (e3 && (e1 || e2)) {
-      level = '情報の統合（病態生理の関連づけ）';
+    } else if (count === 3 || (e1 && e2 && e3)) {
+      level = 'LEVEL 3（情報の統合・病態生理の関連づけ）';
       levelCode = 'LEVEL_3';
-    } else if (e2 || (e1 && count >= 2)) {
-      level = '情報の解釈（根拠の提示）';
+    } else if (count === 2) {
+      level = 'LEVEL 2（情報の解釈・根拠の提示）';
       levelCode = 'LEVEL_2';
     }
 
-    let feedback = `【記述評価：${level}】確認できた視点：${matched.join('、') || '状態変化への着目'}。`;
+    let feedback = `【形成的フィードバック：${level}】\n・確認できた観点：${matched.join(' ／ ') || '術直後の変化への着目'}。`;
     if (missing.length > 0) {
-      feedback += `\nさらに「${missing.join('」「')}」を加えると、仮説検証型の情報収集としてさらに説得力が高まります。`;
+      feedback += `\n・さらに深める視点：${missing.join('、')} を含めると、「酸素化と換気の違い」および「安全確保の緊急性」がより明確になります。`;
     } else {
-      feedback += `\n夕方からの時間的変化を正確に捉えて酸素化の悪化を判断し、仮説を確かめるための情報収集の目的まで論理的に説明できています。`;
+      feedback += `\n・酸素投与下のSpO₂ 96％に惑わされず呼吸数9回/分・浅呼吸から換気低下を見抜き、麻酔・オピオイドの影響や背側無気肺、CO₂蓄積リスク、速やかな報告・対応まで一貫して説明できています。`;
     }
-    return { level, levelCode, matchedElements: matched, missingHints: missing, feedback };
+    return { level, levelCode, matchedElements: matched, missingHints: missing, feedback, formativeNote };
   }
 
-  if (sid === '3') {
-    // Scene 3（最重要）：4要素チェック
-    // 1. 現在、酸素化が悪化しているという判断
-    const e1 = hasAny(['酸素化', '低酸素', 'SpO2', 'SpO₂', '93', '悪化', '低下', '下がっ']);
-    // 2. その根拠となる患者情報（呼吸音・X線・呼吸数等の客観的所見）
-    const e2 = hasAny(['呼吸音', '減弱', '弱く', '副雑音', '胸郭', '24', '頻呼吸', 'X線', 'レントゲン']);
-    // 3. 無気肺・換気低下を引き起こす病態生理・関与要因（疼痛・浅呼吸・喀痰困難・喫煙・麻酔・肺切除など）
-    const e3 = hasAny(['疼痛', '痛み', 'NRS', '浅い呼吸', '浅呼吸', '喀痰困難', '痰が出', '喫煙', '気流閉塞', '麻酔', '分離肺', '切除', '分泌物', '換気血流']);
-    // 4. ドレーン評価（他可能性の鑑別）・今後のリスク（進行・肺炎）と必要な対応
-    const e4 = hasAny(['ドレーン', 'エアリーク', '再膨張', '皮下気腫', '気胸', '進行', '肺炎', 'リスク', '報告', '再評価', '対応']);
-
-    const matched = [];
-    const missing = [];
-    if (e1) matched.push('①酸素化悪化の判断'); else missing.push('①現在、酸素化が悪化しているという明確な判断（SpO₂ 97→93%等）');
-    if (e2) matched.push('②根拠となる患者情報（呼吸音・胸郭・X線・喀痰等）'); else missing.push('②根拠となる具体的な患者情報（左下肺野呼吸音減弱、副雑音、浅速呼吸、X線所見など）');
-    if (e3) matched.push('③無気肺・換気低下の病態生理と複合要因'); else missing.push('③疼痛（NRS 7）による浅呼吸・咳嗽抑制や術前背景・手術要因が無気肺・換気低下につながる病態生理');
-    if (e4) matched.push('④ドレーン評価・今後のリスク（無気肺進行・肺炎）と対応'); else missing.push('④胸腔ドレーン所見（少量エアリークの継続評価）や今後の無気肺進行・肺炎リスクと報告・対応');
-
-    const count = [e1, e2, e3, e4].filter(Boolean).length;
-    let level = '知識の再生';
-    let levelCode = 'LEVEL_1';
-    if (count === 4 || (e1 && e3 && e4 && e2)) {
-      level = '臨床推論（高度な統合）';
-      levelCode = 'LEVEL_4';
-    } else if (e3 && (e1 || e2)) {
-      level = '情報の統合（病態生理の関連づけ）';
-      levelCode = 'LEVEL_3';
-    } else if (e2 || (e1 && count >= 2)) {
-      level = '情報の解釈（根拠の提示）';
-      levelCode = 'LEVEL_2';
-    }
-
-    let feedback = `【ルーブリック到達水準：${level}】\n含まれていた要素：${matched.join(' ／ ') || '病態の指摘'}。`;
-    if (missing.length > 0) {
-      feedback += `\n💡 さらに高めるための視点：${missing.join('、')} までつなげて説明できると、「知識の再生・解釈」から「情報の統合・臨床推論」へと深まります。`;
-    } else {
-      feedback += `\n🌟 素晴らしい統合アセスメントです！①酸素化悪化の判断、②根拠となる観察・検査情報、③複合要因と無気肺の病態生理、④ドレーン評価と今後のリスク・対応の4要素がすべて論理的につながっています。`;
-    }
-    return { level, levelCode, matchedElements: matched, missingHints: missing, feedback };
-  }
-
-  // Scene 4（優先順位と回復促進の看護）
-  const e1 = hasAny(['安全', '優先', '重症度', '酸素', 'ドレーン', '報告', '相談', '医師']);
-  const e2 = hasAny(['疼痛', '鎮痛', '痛み', 'NRS', 'PCEA', '深呼吸', '排痰', '咳嗽', 'ハフィング', '体位']);
-  const e3 = hasAny(['段階', '端座位', '離床', '回復', '予防', '無気肺', '廃用', '血栓']);
-  const e4 = hasAny(['再評価', '効果', '改善', '実施後', '援助後', '呼吸音', 'SpO2', 'SpO₂']);
+  // ================= SCENE 4：NEXT（初回離床の看護判断） =================
+  // 評価観点：患者の意思の尊重、疼痛への対応、離床の目的、安全確認、具体的援助の提案
+  const e1 = hasAny(['痛', 'つらい', '辛', '心配', '不安', '気持ち', '無理', 'よね', 'ね。', '受け止め', '共感']);
+  const e2 = hasAny(['肺', '広げ', '膨ら', '換気', '痰', '排痰', '無気肺', '肺炎', '合併症', '予防', '回復', '目的']);
+  const e3 = hasAny(['鎮痛', '痛み止め', '薬', '支え', '押さえ', '保護', 'タオル', 'ドレーン', '管', 'めまい', '血圧', '付き添']);
+  const e4 = hasAny(['まず', '段階', '少し', '頭を起こ', 'ギャッジ', '座る', '端座位', '相談', '一緒に', 'いかが', 'みませんか', 'どうですか']);
 
   const matched = [];
   const missing = [];
-  if (e1) matched.push('①安全確認・呼吸状態の再評価・医師への報告相談'); else missing.push('①離床の前にまず呼吸状態・酸素・ドレーンを確認し医師へ報告・相談する優先順位');
-  if (e2) matched.push('②鎮痛効果の評価と深呼吸・排痰・体位調整'); else missing.push('②疼痛（NRS 7）を緩和して深呼吸や排痰が行える状態を整える援助');
-  if (e3) matched.push('③状態安定を確認しながらの段階的離床'); else missing.push('③呼吸状態の安定を確認しながら段階的に離床を進める視点');
-  if (e4) matched.push('④援助後の効果の再評価（SpO₂・呼吸数・呼吸音・疼痛）'); else missing.push('④看護実施後にSpO₂・呼吸数・呼吸音・疼痛などを再評価して効果を確認する視点');
+  if (e1) matched.push('患者の痛みや不安の受け止め');
+  else missing.push('「動くと痛い」「管が心配」というAさんの訴え・不安を受け止める言葉');
+
+  if (e2) matched.push('早期離床の目的の説明（肺の再膨張・排痰・無気肺や肺炎の予防）');
+  else missing.push('なぜ離床が必要なのか（肺を広げる・痰を出しやすくする・無気肺や肺炎を防ぐ等）の目的説明');
+
+  if (e3) matched.push('疼痛への対応と安全確認を伴う具体的援助（鎮痛薬・創部保護・ドレーン保持・めまい/血圧確認）');
+  else missing.push('痛み止めの使用や創部保護、ドレーン保持、めまい・血圧確認などの具体的な安全援助の提案');
+
+  if (e4) matched.push('患者の意思の尊重と段階的な離床の提案（端座位やギャッジアップから一緒に試す提案）');
+  else missing.push('いきなり歩行を強制せず、まずはベッドを起こす・座るなど段階的な方法を提案し患者の同意を尋ねる表現');
 
   const count = [e1, e2, e3, e4].filter(Boolean).length;
-  let level = '知識の再生';
+  let level = 'LEVEL 1（知識の再生）';
   let levelCode = 'LEVEL_1';
-  if (count === 4) { level = '臨床推論（高度な統合）'; levelCode = 'LEVEL_4'; }
-  else if (count === 3) { level = '情報の統合（病態生理の関連づけ）'; levelCode = 'LEVEL_3'; }
-  else if (count === 2) { level = '情報の解釈（根拠の提示）'; levelCode = 'LEVEL_2'; }
-
-  let feedback = `【記述評価：${level}】確認できた視点：${matched.join('、') || '看護援助の提案'}。`;
-  if (missing.length > 0) {
-    feedback += `\nさらに「${missing.join('」「')}」まで含めると、安全性を踏まえた優先順位と回復促進の看護・効果評価が一貫して説明できます。`;
-  } else {
-    feedback += `\n現在の安全性を踏まえた初期対応から、疼痛管理・排痰・段階的離床、そして援助後の再評価まで、患者の状態に即して一貫した説明ができています。`;
+  if (count === 4) {
+    level = 'LEVEL 4（臨床推論・高度な統合）';
+    levelCode = 'LEVEL_4';
+  } else if (count === 3) {
+    level = 'LEVEL 3（情報の統合・援助の関連づけ）';
+    levelCode = 'LEVEL_3';
+  } else if (count === 2) {
+    level = 'LEVEL 2（情報の解釈・根拠の提示）';
+    levelCode = 'LEVEL_2';
   }
-  return { level, levelCode, matchedElements: matched, missingHints: missing, feedback };
+
+  let feedback = `【形成的フィードバック：${level}】\n・確認できた観点：${matched.join(' ／ ') || '離床への声かけ'}。`;
+  if (missing.length > 0) {
+    feedback += `\n・さらに深める視点：${missing.join('、')} を声かけに加えると、患者の意思を尊重しながら安全に離床を支援する看護がより伝わりやすくなります。`;
+  } else {
+    feedback += `\n・Aさんの痛みと不安に寄り添いながら、早期離床の目的、鎮痛・創部/ドレーン保護の具体策、そして段階的な提案と意思確認が温かく論理的に表現されています。`;
+  }
+  return { level, levelCode, matchedElements: matched, missingHints: missing, feedback, formativeNote };
 }
 
-// 臨床推論と患者結果の評価ロジック（第4回 肺がん患者の看護・4 Scene対応）
-function evaluateSceneResult(sceneId, selectedInfo, decision, rationaleText = '') {
+// 臨床推論と患者結果の評価ロジック（第4回 変更仕様書 4 Scene 完全対応）
+function evaluateSceneResult(sceneId, selectedInfo, decision, rationaleText = '', selectedDecisions = []) {
   const sid = String(sceneId);
+  const sceneDef = scenarioData.scenes[sid];
   const rationaleEval = evaluateRationaleText(sid, rationaleText);
 
-  // ================= SCENE 1 — BEFORE（術前リスク予測） =================
+  // ================= SCENE 1：BEFORE（術前呼吸機能のアセスメント） =================
   if (sid === '1') {
-    const hasSmoking = selectedInfo.includes('smoking_sputum');
-    const hasSpiro = selectedInfo.includes('spirometry');
-    const hasSurgery = selectedInfo.includes('surgery_anesthesia');
-    const criticalCount = [hasSmoking, hasSpiro, hasSurgery].filter(Boolean).length;
+    const highPriorityIds = ['age_68', 'smoking_history', 'morning_sputum', 'slope_dyspnea', 'fev1_fvc_64', 'spo2_97_ra', 'vats_lul', 'ga_olv'];
+    const suppIds = ['history_ht', 'family_garden'];
 
-    if (decision === 'predict-high-risk') {
-      if (criticalCount === 3) {
-        return {
-          patientOutcome: 'STABLE',
-          clinicalReasoning: 'SUFFICIENT_ASSESSMENT',
-          resultType: 'Well-supported preoperative risk prediction',
-          title: '患者背景と手術要因の相互作用を踏まえた的確な術前リスク予測',
-          story: 'あなたたちは、Aさんの安静時SpO₂（97%）が保たれていることだけで安心せず、【喫煙歴・朝の白色痰・労作時息切れ】【FEV₁/FVC 64%（気流閉塞の示唆）】【全身麻酔・分離肺換気・左上葉切除・術後疼痛】の3領域を確実に確認しました。\n\nこれらが相互に影響することで、術後に分泌物貯留・肺胞換気低下・無気肺・低酸素血症が生じるリスクが高いと予測し、術前から腹式呼吸・深呼吸や創部保護（スプリンティング）を用いた有効な咳嗽・ハフィング、疼痛を我慢せず伝えることの重要性をAさんと共有できました。',
-          reflectionQuestion: '「現在安静時のSpO₂が97%で安定していること」と「手術後の呼吸器合併症リスクが低いこと」がなぜイコールにならないのか、グループで記述したアセスメントを振り返ってみましょう。',
-          rationaleEvaluation: rationaleEval
-        };
-      } else {
-        const missed = [];
-        if (!hasSmoking) missed.push('喫煙歴・日常の気道症状');
-        if (!hasSpiro) missed.push('術前呼吸機能検査（FEV₁/FVC 64%）');
-        if (!hasSurgery) missed.push('術式・全身麻酔・分離肺換気・術後疼痛の特徴');
-        return {
-          patientOutcome: 'STABLE',
-          clinicalReasoning: 'PARTIAL_ASSESSMENT',
-          resultType: 'Appropriate risk prediction with partial information',
-          title: '適切な術前リスク予測（一部の重要根拠が未確認）',
-          story: `術後の呼吸器合併症リスクが高いと予測し、術前からの呼吸・排痰指導を行う判断自体は適切でした。\n一方で、優先して確認すべき【${missed.join('、')}】が未選択であったため、「なぜAさんに無気肺や分泌物貯留が生じやすいのか」を患者背景と手術・麻酔・疼痛の相互作用から説明する根拠が一部不足していました。`,
-          reflectionQuestion: `今回未確認だった【${missed.join('、')}】を加えると、Aさんの術後リスクの説明はどう深まるでしょうか？`,
-          rationaleEvaluation: rationaleEval
-        };
-      }
-    } else if (decision === 'assume-low-risk') {
-      return {
-        patientOutcome: 'CONDITION_CHANGED',
-        clinicalReasoning: 'MISSED_CRITICAL_CUE',
-        resultType: 'Misconception: Normal SpO2 equals normal pulmonary reserve',
-        title: 'PATIENT CONDITION CHANGED（術前リスクの過小評価による準備不足）',
-        story: '「安静時のSpO₂が97%（室内気）だから肺機能に問題はない」と判断し、十分な呼吸・排痰練習や疼痛時の対処指導を行わないまま手術当日を迎えました。\n\nしかし、Aさんには45年間の喫煙歴、朝の白色痰、坂道での息切れ、FEV₁/FVC 64%という気流閉塞傾向があり、そこに全身麻酔・分離肺換気・左上葉切除・術後疼痛が重なったことで、術後に強い創部痛と喀痰困難が出現し、どう呼吸や咳をしてよいか分からずパニックになってしまいました。',
-        reflectionQuestion: '「安静時のSpO₂が97%であること」は、なぜ「呼吸機能が正常で術後リスクが低い証拠」にはならないのでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
-    } else if (decision === 'diagnose-copd-stop') {
-      return {
-        patientOutcome: 'STABLE',
-        clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Misconception: FEV1/FVC 64% alone confirms severe COPD',
-        title: '検査値の短絡的な決めつけ（FEV₁/FVC 64%の解釈誤り）',
-        story: 'FEV₁/FVC 64%という数値のみから「重度COPDが確定しており手術不能である」と判断しました。\n\nしかし、FEV₁/FVC 64%は気流閉塞を示唆する重要な所見であるものの、それ単独でCOPDが確定診断されるわけではありません（気管支拡張薬吸入後の評価や他疾患の除外が必要）。また、%VCは92%保たれており、手術の中止ではなく「気流閉塞傾向を踏まえた周術期の呼吸管理・合併症予防」こそが看護に求められます。',
-        reflectionQuestion: '検査データから「気流閉塞が示唆される（リスクが高い）」と推論することと、「疾患が確定している・手術できない」と決めつけることの違いは何でしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
-    } else {
-      // inevitable-atelectasis
-      return {
-        patientOutcome: 'CONDITION_CHANGED',
-        clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Misconception: Deterministic view of smoking and atelectasis',
-        title: 'リスク予測と確定の混同（「喫煙者＝必ず無気肺」という決めつけ）',
-        story: '「喫煙者だから必ず無気肺になる」と断定し、術後は最初から機械的吸引を繰り返す方針を伝えました。Aさんは強い恐怖心を抱き、手術への意欲が低下してしまいました。\n\n喫煙歴や気流閉塞傾向は無気肺のリスク因子ですが、「必ず発症する」わけではありません。だからこそ、疼痛管理と深呼吸・有効な咳嗽支援・早期離床によって予防・早期改善を図る看護が重要になります。',
-        reflectionQuestion: '「リスクが高いと予測して予防的看護を行うこと」と、「必ず合併症が起きると決めつけること」にはどのような違いがあるでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
+    const selectedHigh = selectedInfo.filter(id => highPriorityIds.includes(id));
+    const missedHigh = highPriorityIds.filter(id => !selectedInfo.includes(id));
+    const selectedSupp = selectedInfo.filter(id => suppIds.includes(id));
+
+    const itemMap = {};
+    (sceneDef?.infoItems || []).forEach(it => { itemMap[it.id] = it.label; });
+
+    const strengths = [];
+    const furtherPoints = [];
+
+    if (selectedHigh.length >= 6) {
+      strengths.push(`呼吸機能のアセスメントに直結する重要情報（${selectedHigh.map(id => itemMap[id]).join('、')}）を的確に選択できています。`);
+    } else if (selectedHigh.length >= 3) {
+      strengths.push(`選択した情報（${selectedHigh.map(id => itemMap[id]).join('、')}）の意味づけを確認し、術後リスク予測につなげています。`);
     }
+
+    if (missedHigh.length > 0) {
+      furtherPoints.push(`未選択だった【${missedHigh.map(id => itemMap[id]).join('、')}】も、術後の換気低下・排痰困難・無気肺を予測するうえで重要な根拠となります。`);
+    }
+    if (selectedSupp.length > 0) {
+      furtherPoints.push(`選択した【${selectedSupp.map(id => itemMap[id]).join('、')}】は患者の全体像や退院支援を考えるうえでは有用ですが、「術後の呼吸状態を予測する」という今回の目的においては、喫煙歴・FEV₁/FVC・術式・分離肺換気などの呼吸器関連情報の優先度がより高くなります。`);
+    }
+    if (rationaleEval.matchedElements.length > 0) {
+      strengths.push(`自由記述において「${rationaleEval.matchedElements.join('」「')}」の視点が含まれています。`);
+    }
+    if (rationaleEval.missingHints.length > 0) {
+      furtherPoints.push(...rationaleEval.missingHints.map(h => `自由記述でさらに補うとよい視点：${h}`));
+    }
+
+    const isSufficient = selectedHigh.length >= 5 && (rationaleEval.levelCode === 'LEVEL_3' || rationaleEval.levelCode === 'LEVEL_4');
+
+    return {
+      patientOutcome: 'STABLE',
+      clinicalReasoning: isSufficient ? 'SUFFICIENT_ASSESSMENT' : 'PARTIAL_ASSESSMENT',
+      resultType: isSufficient ? 'Integrated preoperative respiratory assessment' : 'Developing preoperative respiratory assessment',
+      title: isSufficient
+        ? '患者背景と手術・麻酔要因を関連づけた術前呼吸機能アセスメント'
+        : '術前呼吸機能アセスメントの完了（重要情報の関連づけをさらに深めましょう）',
+      story: `あなたたちは${selectedInfo.length}個の患者情報カードを選択してそれぞれの意味づけを確認し、術後に予測されるAさんの呼吸状態についてアセスメント文章を作成しました。\n\n${rationaleEval.feedback}\n${rationaleEval.formativeNote}`,
+      strengths,
+      furtherPoints,
+      modelThinking: '【教員用の模範的な思考例】\nAさんは安静時のSpO₂（97％・室内気）は保たれているが、68歳という年齢に加え、20本/日×45年間の喫煙歴、朝の喀痰、坂道での軽度の息切れがあり、FEV₁/FVC 64％から気流閉塞および線毛クリアランス低下が疑われる。\nここに全身麻酔・分離肺換気下での胸腔鏡下左上葉切除術が加わることで、肺容量の減少や肺胞の再拡張不全が生じやすく、さらに術後疼痛によって深呼吸や有効な咳嗽が抑制される可能性が高い。\nしたがって、術後は気道分泌物の貯留、肺胞換気量の低下、無気肺、低酸素血症などの発生リスクが高いと予測される。',
+      reflectionQuestion: '選択した患者情報のうち、「患者側の呼吸器背景（喫煙・喀痰・FEV₁/FVC 64％など）」と「手術・麻酔・疼痛の要因」が術後にどう重なり合うか、グループで文章を比較してみましょう。',
+      rationaleEvaluation: rationaleEval
+    };
   }
 
-  // ================= SCENE 2 — DURING（術後の変化への気づき・情報収集） =================
+  // ================= SCENE 2：AFTER（術直後の呼吸状態） =================
   if (sid === '2') {
-    const hasBreath = selectedInfo.includes('breath_chest_wall');
-    const hasPainSputum = selectedInfo.includes('pain_cough_sputum');
-    const hasDrain = selectedInfo.includes('chest_drain');
-    const hasXray = selectedInfo.includes('chest_xray');
-    const hasConscious = selectedInfo.includes('consciousness_dyspnea');
-    const keyRespCount = [hasBreath, hasPainSputum, hasDrain, hasXray].filter(Boolean).length;
+    const coreIds = ['resp_depth_pattern', 'consciousness_sedation', 'pain_postop', 'breath_sounds_postop', 'analgesics_anesthetics', 'etco2_abg'];
+    const lowPriorityIds = ['urine_output', 'wound_condition', 'body_temperature', 'diet_status', 'living_background_s2'];
 
-    if (decision === 'assess-oxygenation-drop') {
-      if (keyRespCount >= 2) {
-        return {
-          patientOutcome: 'STABLE',
-          clinicalReasoning: 'SUFFICIENT_ASSESSMENT',
-          resultType: 'Timely recognition of oxygenation drop and hypothesis-driven data collection',
-          title: '時間的変化からの酸素化悪化の気づきと仮説検証型の情報収集',
-          story: 'あなたたちは、術当日夕方と術後1日目朝を比較し、「同じ酸素2L/分投与下なのにSpO₂が97%から93%へ低下し、呼吸数が18回/分から24回/分へ増加、咳嗽時疼痛がNRS 5から7へ増強している」ことから、酸素化が悪化していると的確に判断しました。\n\nそのうえで、肺胞換気低下・分泌物貯留・無気肺・気胸やドレーン異常などの仮説を確かめるために、呼吸のフィジカルアセスメント・喀痰と疼痛・胸腔ドレーン・胸部X線などの重要情報を目的意識をもって収集できました。',
-          reflectionQuestion: '今回収集した情報から、Aさんの左胸郭・左下肺野・気道内・胸腔内ではそれぞれ何が起きていると考えられますか？次のScene 3で統合してみましょう。',
-          rationaleEvaluation: rationaleEval
-        };
-      } else {
-        return {
-          patientOutcome: 'STABLE',
-          clinicalReasoning: 'PARTIAL_ASSESSMENT',
-          resultType: 'Recognized deterioration but missed key respiratory physical/drain cues',
-          title: '酸素化悪化への気づきは適切（局所呼吸所見・ドレーン情報の不足）',
-          story: '夕方からの変化を捉えて「酸素化が悪化しており原因評価が必要である」と判断した点は適切でした。\nただし、選択した情報だけでは、左下肺野の呼吸音減弱・副雑音や喀痰困難、胸腔ドレーンの状態、胸部X線所見など、なぜ酸素化が悪化したのかを特定するための呼吸器フィジカル情報が不足していました。',
-          reflectionQuestion: '全身の重症度確認に加えて、「なぜSpO₂が下がったのか」という局所の病態（換気・排痰・胸腔内）を確かめるにはどの情報が不可欠だったでしょうか？',
-          rationaleEvaluation: rationaleEval
-        };
+    const selectedCore = selectedInfo.filter(id => coreIds.includes(id));
+    const missedCore = coreIds.filter(id => !selectedInfo.includes(id));
+    const selectedLow = selectedInfo.filter(id => lowPriorityIds.includes(id));
+
+    const itemMap = {};
+    (sceneDef?.infoItems || []).forEach(it => { itemMap[it.id] = it.label; });
+
+    const strengths = [];
+    const furtherPoints = [];
+
+    if (selectedCore.length >= 4) {
+      strengths.push(`呼吸状態のアセスメントに優先度の高い観察項目（${selectedCore.map(id => itemMap[id]).join('、')}）を的確に選択・確認できています。`);
+    }
+    if (missedCore.length > 0) {
+      furtherPoints.push(`未確認だった【${missedCore.map(id => itemMap[id]).join('、')}】も、換気低下や呼吸抑制・無気肺を評価するうえで非常に優先度の高い情報です。`);
+    }
+    if (selectedLow.length > 0) {
+      furtherPoints.push(`確認した【${selectedLow.map(id => itemMap[id]).join('、')}】は術後全身管理としては意味がありますが、「呼吸数9回/分・傾眠傾向」という緊急性の高い換気低下のアセスメントにおいては、呼吸の深さ・意識・呼吸音・麻酔鎮痛薬・EtCO₂/血液ガスの優先度がより高くなります。`);
+    }
+
+    const modelThinking = '【教員用の模範的な思考例】\n・呼吸数9回/分と「浅くゆっくりした呼吸」から、1回換気量および分時換気量・肺胞換気量の低下を強く疑う。\n・酸素3L/分投与中のためSpO₂は96％に保たれているが、酸素投与下のSpO₂のみでは十分に換気（CO₂排出）ができているとは判断できない。\n・全身麻酔直後であることやオピオイドを含むPCA使用、刺激がないと眠る傾眠傾向から、麻酔薬・オピオイド等による呼吸抑制（および低酸素・高CO₂換気応答の抑制）の可能性を考える（※機序は断定せず可能性として評価する）。\n・両側背側肺底部の呼吸音減弱や強い疼痛（安静時NRS 5・咳嗽時NRS 8）による浅呼吸から、背側無気肺の関与も考慮する。\n・CO₂蓄積（高二酸化炭素血症）やさらなる呼吸停止・悪化のリスクがあるため、速やかな声かけ・安全確認・再評価（EtCO₂や血液ガス検討を含む）と医師への報告・対応につなげる。';
+
+    if (decision === 'recognize-hypoventilation-report') {
+      strengths.push('酸素投与中のSpO₂ 96％だけに惑わされず、呼吸数9回/分・浅呼吸・傾眠傾向から換気低下（呼吸抑制疑い）を捉え、速やかな安全確認と医師への報告を選択できました。');
+      if (rationaleEval.matchedElements.length > 0) {
+        strengths.push(`自由記述において「${rationaleEval.matchedElements.join('」「')}」を説明できています。`);
       }
-    } else if (decision === 'ignore-as-normal') {
+      if (rationaleEval.missingHints.length > 0) {
+        furtherPoints.push(...rationaleEval.missingHints.map(h => `自由記述でさらに補うとよい視点：${h}`));
+      }
+
+      return {
+        patientOutcome: 'STABLE',
+        clinicalReasoning: selectedCore.length >= 4 ? 'SUFFICIENT_ASSESSMENT' : 'PARTIAL_ASSESSMENT',
+        resultType: 'Appropriate recognition of hypoventilation and prompt safety action',
+        title: '酸素化と換気の違いを踏まえた換気低下（呼吸抑制疑い）の把握と迅速な報告',
+        story: `あなたたちは、酸素3L/分投与下でSpO₂が96％であっても、呼吸数9回/分・浅くゆっくりした呼吸・傾眠傾向から「肺胞換気量の低下（呼吸抑制の疑い）」があると判断し、速やかに安全確認・再評価と医師への報告を行いました。\n医師によりオピオイドPCA設定の調整と換気状態（血液ガス・EtCO₂）の評価が行われ、CO₂ナルコーシスや呼吸停止への進行を未然に防ぐことができました。\n\n${rationaleEval.feedback}\n${rationaleEval.formativeNote}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: 'なぜ「酸素3L/分投与中でSpO₂ 96％」であっても、換気（CO₂の排出）が十分とは言えないのでしょうか？SCENE 1の術前予測とも比較しながら振り返ってみましょう。',
+        rationaleEvaluation: rationaleEval
+      };
+    } else if (decision === 'rely-on-spo2-96') {
+      furtherPoints.push('酸素投与下では肺胞換気量が低下していてもSpO₂が高く保たれることがあるため、「SpO₂ 96％＝呼吸状態に問題なし」と判断すると呼吸抑制やCO₂蓄積を見落とす危険があります。');
       return {
         patientOutcome: 'DETERIORATED',
         clinicalReasoning: 'MISSED_CRITICAL_CUE',
-        resultType: 'Failed to compare temporal change (97% to 93%)',
-        title: 'PATIENT CONDITION CHANGED（時間的変化の見落としによる呼吸状態の悪化）',
-        story: '「SpO₂ 93%は術後によくある範囲内」と単一時点の数値だけで判断し、術当日夕方（SpO₂ 97%、RR 18回/分）からの時間的な悪化を見過ごして経過観察としました。\n\n数時間後、Aさんは粘稠痰による気道閉塞と無気肺の拡大によりSpO₂が88%まで低下し、強い呼吸困難と頻呼吸（30回/分）を呈する状態へと悪化してしまいました。',
-        reflectionQuestion: '「現在の数値だけを見ること」と「術当日夕方から術後1日目朝への時間的な変化（Trend）を比較すること」では、判断にどのような違いが生まれるでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
-    } else if (decision === 'pain-only-view') {
-      return {
-        patientOutcome: 'CONDITION_CHANGED',
-        clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Premature closure on pain without respiratory assessment',
-        title: 'PATIENT CONDITION CHANGED（疼痛のみへの短絡と呼吸器評価の欠如）',
-        story: '呼吸数や脈拍の増加をすべて「創部痛によるもの」と決めつけ、呼吸音の聴診や胸腔ドレーンの確認を行わずに鎮痛薬のみを投与しました。\n\n痛みはわずかに和らいだものの、すでに生じていた粘稠痰の貯留と左下肺野の換気低下（無気肺）が見落とされたままとなり、SpO₂は92%へさらに低下しました。',
-        reflectionQuestion: '疼痛は重要な要因ですが、酸素化が低下（SpO₂ 97%→93%）している患者で呼吸音や胸腔ドレーンを確認しないことにはどのような危険があるでしょうか？',
+        resultType: 'Misinterpreting SpO2 96% under oxygen as adequate ventilation',
+        title: 'PATIENT CONDITION CHANGED（SpO₂ 96％への過信による換気低下・CO₂貯留の進行）',
+        story: `「SpO₂が96％あるから呼吸は大丈夫だろう」と判断してそのまま眠らせ続けた結果、浅くゆっくりした呼吸（9回/分→6回/分）がさらに進行し、CO₂蓄積（高二酸化炭素血症）によって呼びかけにも反応しにくい状態へと悪化しました。\n酸素投与中のSpO₂は「酸素化」の指標であり、「換気（分時換気量・CO₂排出）」が十分である証拠にはなりません。\n\n${rationaleEval.feedback}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: '酸素投与中にSpO₂が96％保たれていても、呼吸数9回/分・浅呼吸の患者体内で二酸化炭素（CO₂）はどう変化しているでしょうか？',
         rationaleEvaluation: rationaleEval
       };
     } else {
-      // blind-oxygen-up
+      furtherPoints.push('呼吸数9回/分・傾眠傾向がある状態での独断によるオピオイド追加や突然の酸素中止は重篤な危険を伴います。まず気道・呼吸の安全確認と医師への報告・相談が必要です。');
       return {
-        patientOutcome: 'CONDITION_CHANGED',
+        patientOutcome: 'DETERIORATED',
         clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Blind oxygen escalation masking underlying pathology',
-        title: 'PATIENT CONDITION CHANGED（原因未評価のままの酸素増量による病態マスク）',
-        story: 'なぜSpO₂が低下したのかを観察・評価しないまま、独断で酸素流量を増量して見かけ上のSpO₂数値だけを引き上げました。\n\nパルスオキシメーターの数値は一時的に上がりましたが、左下肺野の無気肺や気道分泌物の貯留という根本原因は放置されたため、肺胞虚脱がさらに進行してしまいました。',
-        reflectionQuestion: 'SpO₂という「結果の数値」だけを酸素増量で取り繕うことは、なぜ根本的な解決にならず危険なのでしょうか？',
+        resultType: 'Unsafe intervention under suspected respiratory depression',
+        title: 'PATIENT CONDITION CHANGED（呼吸抑制疑い下での不適切な対応による悪化）',
+        story: `呼吸数9回/分・傾眠傾向という呼吸抑制の徴候があるにもかかわらず、オピオイドの追加投与（または独断での酸素中止）を行った結果、呼吸状態が急速に悪化し緊急対応が必要となりました。\n呼吸抑制が疑われる場面では、速やかな呼吸状態の再評価と医師への報告・相談が最優先です。\n\n${rationaleEval.feedback}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: '強い創部痛（咳嗽時NRS 8）と呼吸抑制疑い（呼吸数9回/分・傾眠）が同時に存在するとき、看護師はどのように評価・報告すべきでしょうか？',
         rationaleEvaluation: rationaleEval
       };
     }
   }
 
-  // ================= SCENE 3 — AFTER（情報の統合とアセスメント記述） =================
+  // ================= SCENE 3：AFTER 2（胸腔ドレーンのアセスメント・複数選択式） =================
   if (sid === '3') {
-    if (decision === 'integrated-clinical-reasoning') {
-      const isHighLevel = rationaleEval.levelCode === 'LEVEL_4' || rationaleEval.levelCode === 'LEVEL_3';
+    const correctIds = sceneDef?.correctDecisions || ['A', 'B', 'D', 'F'];
+    const chosen = Array.isArray(selectedDecisions) && selectedDecisions.length > 0
+      ? selectedDecisions
+      : (decision ? String(decision).split(',').map(s => s.trim()).filter(Boolean) : []);
+
+    const optionEvaluations = (sceneDef?.decisions || []).map(opt => {
+      const isSelected = chosen.includes(opt.id);
+      const isCorrectOption = !!opt.isCorrect;
+      const isAppropriateChoice = (isSelected && isCorrectOption) || (!isSelected && !isCorrectOption);
       return {
-        patientOutcome: 'STABLE',
-        clinicalReasoning: isHighLevel ? 'SUFFICIENT_ASSESSMENT' : 'PARTIAL_ASSESSMENT',
-        resultType: isHighLevel ? 'Comprehensive pathophysiological integration' : 'Correct conclusion, rationale needs deeper integration',
-        title: isHighLevel
-          ? '複数要因と病態生理を関連づけた統合的アセスメントの成立'
-          : '病態判断は適切（自由記述での要因間の関連づけをさらに深めましょう）',
-        story: `あなたたちは、術前背景（長期喫煙・気流閉塞傾向）、手術・麻酔の影響（全身麻酔・分離肺換気・左上葉切除）、そして術後疼痛（咳嗽時NRS 7）による浅呼吸と喀痰困難が相互に重なり、分泌物貯留と左下肺野の無気肺（換気血流比不均衡）によって酸素化が悪化（SpO₂ 97%→93%、RR 18→24回/分）していると統合的に判断しました。\nまた、胸腔ドレーンの咳嗽時少量エアリークについても、残存肺の再膨張や皮下気腫・出血の有無と合わせて冷静に評価し、今後の無気肺進行や肺炎リスクを見据えることができました。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '自分たちが記述したアセスメント文章に「①酸素化悪化の判断」「②根拠となる患者情報」「③無気肺を疑う病態生理と関与する要因」「④ドレーン評価と今後のリスク・必要な対応」の4要素がどのようにつながっているか、クラス討議で確認してみましょう。',
-        rationaleEvaluation: rationaleEval
+        id: opt.id,
+        label: opt.label,
+        isSelected,
+        isCorrectOption,
+        isAppropriateChoice,
+        statusLabel: isSelected
+          ? (isCorrectOption ? '✓ 正しく選択（正答）' : '✕ 誤って選択（誤答）')
+          : (isCorrectOption ? '△ 選択漏れ（正答を見落とし）' : '✓ 正しく非選択（誤答を回避）'),
+        explanation: opt.explanation
       };
-    } else if (decision === 'label-only-atelectasis') {
-      return {
-        patientOutcome: 'CONDITION_CHANGED',
-        clinicalReasoning: 'PARTIAL_ASSESSMENT',
-        resultType: 'Single-factor labeling without pain/sputum integration',
-        title: '病態名（無気肺）の指摘にとどまり、疼痛・喀痰との関連づけが不足',
-        story: `胸部X線等から「無気肺」という病態には気づけましたが、現在の強い術後疼痛（咳嗽時NRS 7）による浅呼吸・咳嗽抑制や、長期喫煙に伴う粘稠痰の喀出困難が無気肺を引き起こし悪化させているという「複合要因のつながり」が捉えきれていませんでした。\nなぜ無気肺が起きているのかの要因が統合されないと、次のSceneで必要な「疼痛管理と排痰援助」へつながりません。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '単に「無気肺が起きている」と診断名のように言うことと、「なぜAさんに無気肺・換気低下が生じているのかを複数の要因から説明すること」では、導き出される看護がどう変わるでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
-    } else if (decision === 'airleak-main-cause') {
-      return {
-        patientOutcome: 'CONDITION_CHANGED',
-        clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Misinterpretation of minor cough air leak as tension pneumothorax',
-        title: 'ドレーン所見の偏った解釈（他所見との統合不足）',
-        story: `咳嗽時の少量のエアリークのみに注目し、重篤な気胸による肺完全虚脱と断定してしまいました。\nしかし、胸部X線では残存肺は概ね再膨張しており、皮下気腫や排液急増もありません。少量のエアリークは経過観察が必要ですが、現在の酸素化悪化の主因は疼痛（NRS 7）による浅呼吸・喀痰困難と左下肺野の無気肺・換気低下にあります。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '1つの所見（咳嗽時少量エアリーク）だけに飛びつかず、胸部X線や聴診・喀痰・疼痛の所見と統合して全体像を評価するにはどう考えればよかったでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
-    } else {
-      // no-complication-risk
-      return {
-        patientOutcome: 'DETERIORATED',
-        clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Underestimation of hypoxia and progression risk to pneumonia',
-        title: 'PATIENT CONDITION CHANGED（酸素化悪化と無気肺進行・肺炎リスクの見落とし）',
-        story: `意識清明で血圧が保たれていることから「異常なし・悪化リスクなし」と判断しました。\nしかし、すでに酸素化は悪化（SpO₂ 93%、RR 24回/分）しており、放置すれば無気肺の拡大や貯留分泌物への感染による術後肺炎・呼吸不全へ進行する高いリスクがありました。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '現在の所見から「今後どのような悪化（無気肺の進行、肺炎など）が起こり得るか」まで予測することが、なぜ看護アセスメントにおいて重要なのでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
+    });
+
+    const isPerfect = optionEvaluations.every(o => o.isAppropriateChoice);
+    const chosenCorrect = optionEvaluations.filter(o => o.isSelected && o.isCorrectOption);
+    const missedCorrect = optionEvaluations.filter(o => !o.isSelected && o.isCorrectOption);
+    const chosenWrong = optionEvaluations.filter(o => o.isSelected && !o.isCorrectOption);
+
+    const strengths = [];
+    const furtherPoints = [];
+
+    if (chosenCorrect.length > 0) {
+      strengths.push(`正答である【${chosenCorrect.map(o => o.id).join('・')}】を適切に選択できました。`);
     }
+    if (!chosen.includes('E')) {
+      strengths.push('「E（エアリーク時のドレーンクランプ）」という危険な誤答を選択せず回避できました。');
+    }
+    if (!chosen.includes('C')) {
+      strengths.push('「C（排液所見のみから今後の出血リスク完全消失を断定）」という単一所見からの断定を回避できました。');
+    }
+
+    if (missedCorrect.length > 0) {
+      furtherPoints.push(`正答である【${missedCorrect.map(o => o.id).join('・')}】が未選択でした。呼吸性移動の意味や、排液・エアリークの継続評価の必要性も合わせて確認しましょう。`);
+    }
+    if (chosenWrong.length > 0) {
+      chosenWrong.forEach(w => {
+        furtherPoints.push(`【${w.id}を選択した点について】${w.explanation}`);
+      });
+    }
+
+    const modelThinking = '【教員用の模範的な思考例（正答：A・B・D・F）】\n・エアリークと肺再膨張（A）：咳嗽時のみ少量のエアリークは軽度の肺瘻や胸腔内残存空気の排出が考えられるが、皮下気腫がなく胸部X線で残存左肺が概ね再膨張し大量気胸もないため、現時点でドレーン排気は有効に機能している。\n・呼吸性移動（B）：水封室の呼吸性移動は、胸腔内圧の変化が伝わっておりドレーンが閉塞していないことを意味する。\n・排液所見から判断できることとできないこと（Cは誤り、Dが正答）：淡血性・2時間80mL・急増なしから「現時点で明らかな大量出血の徴候はない」と判断できるが、「出血リスクが完全にゼロで観察不要」とは断定できず、継続観察が必要である。\n・ドレーンクランプの危険性と継続評価（Eは誤り、Fが正答）：エアリークがある状態でドレーンをクランプすると「緊張性気胸」を招く危険があるため禁忌であり、水封管理を続けながらエアリークや皮下気腫の推移を継続評価する。';
+
+    let outcome = 'STABLE';
+    let reasoning = 'SUFFICIENT_ASSESSMENT';
+    let title = '胸腔ドレーン複数所見の的確な統合アセスメント（完全正答：A・B・D・F）';
+    let story = 'あなたたちは8つの観察所見を統合し、「判断できること」と「単一所見からは断定できず継続評価が必要なこと」、そして「安易なドレーンクランプの危険性」をすべて正確に区別してアセスメントできました。';
+
+    if (!isPerfect) {
+      if (chosen.includes('E')) {
+        outcome = 'DETERIORATED';
+        reasoning = 'INAPPROPRIATE_DECISION';
+        title = '要注意：エアリーク存在下でのドレーンクランプ（E）は緊張性気胸の危険があります';
+        story = '咳嗽時にエアリークがある状態で胸腔ドレーンをクランプ（閉塞）すると、肺から漏れた空気が胸腔内に逃げ場を失って貯留し、胸腔内圧が急上昇して「緊張性気胸」を引き起こす危険があります。各選択肢の解説を確認し、なぜA・B・D・Fが正答となるかを振り返りましょう。';
+      } else {
+        outcome = 'STABLE';
+        reasoning = 'PARTIAL_ASSESSMENT';
+        title = `胸腔ドレーンアセスメント結果（あなたたちの選択：${chosen.join('・') || 'なし'} ／ 正答：A・B・D・F）`;
+        story = '胸腔ドレーンの所見は、1つの所見だけで「すべて安全」または「直ちに異常」と断定するのではなく、エアリーク・呼吸性移動・排液・皮下気腫・胸部X線を組み合わせて評価します。下の選択肢別フィードバックで各判断の根拠を確認しましょう。';
+      }
+    }
+
+    return {
+      patientOutcome: outcome,
+      clinicalReasoning: reasoning,
+      resultType: isPerfect ? 'Perfect multi-select drain assessment' : 'Partial multi-select drain assessment',
+      title,
+      story,
+      strengths,
+      furtherPoints,
+      modelThinking,
+      optionEvaluations,
+      reflectionQuestion: '「排液は淡血性、術後2時間で80mL、急増なし」という所見から【判断できること】と【これだけでは判断できないこと】は何でしょうか？また、なぜエアリークがあるときにクランプしてはいけないのでしょうか？',
+      rationaleEvaluation: rationaleEval
+    };
   }
 
-  // ================= SCENE 4 — NEXT（看護の優先順位と回復促進の看護） =================
+  // ================= SCENE 4：NEXT（初回離床の看護判断） =================
   if (sid === '4') {
-    const hasSafety = selectedInfo.includes('safety_first_report');
-    const hasPainCare = selectedInfo.includes('pain_sputum_positioning');
-    const hasMobilizeEval = selectedInfo.includes('safe_mobilization_reassess');
-    const criticalCount = [hasSafety, hasPainCare, hasMobilizeEval].filter(Boolean).length;
+    const allInfoIds = ['resp_circ_stability', 'orthostatic_symptom_bp', 'movement_pain_control', 'drain_route_status', 'patient_reason_refusal'];
+    const checkedCount = selectedInfo.filter(id => allInfoIds.includes(id)).length;
+    const missedIds = allInfoIds.filter(id => !selectedInfo.includes(id));
 
-    if (decision === 'priority-reassess-pain-mobilize') {
+    const itemMap = {};
+    (sceneDef?.infoItems || []).forEach(it => { itemMap[it.id] = it.label; });
+
+    const strengths = [];
+    const furtherPoints = [];
+
+    if (checkedCount === 5) {
+      strengths.push('初回離床の判断に必要な5つの重要情報（呼吸・循環動態、起立時のめまい・血圧変化、体動時疼痛、ドレーン・ルート類、離床を希望しない理由）をすべて確認できました。');
+    } else if (checkedCount >= 3) {
+      strengths.push(`離床判断のための重要情報（${selectedInfo.map(id => itemMap[id]).join('、')}）を確認できました。`);
+    }
+    if (missedIds.length > 0) {
+      furtherPoints.push(`離床前に【${missedIds.map(id => itemMap[id]).join('、')}】もあわせて確認しておくと、安全性と患者理解がより確実になります。`);
+    }
+
+    const modelThinking = '【教員用の模範的な思考例】\n1. 安全性の評価：意識清明、呼吸数17回/分、SpO₂ 96％（室内気）、血圧128/76mmHg、脈拍86回/分（整）であり、昨日の呼吸抑制から回復して離床を検討できる状態にある。\n2. 阻害要因と患者の思いの理解：体動時NRS 5の痛みと「胸腔ドレーンが引っ張られないか」という不安から、Aさんは「今日はやめておきたい」と話している。\n3. 看護判断と声かけ：痛みや不安をまず受け止めたうえで、早期離床の目的（肺の再膨張・排痰促進・無気肺や肺炎の予防）を説明し、追加鎮痛薬の使用・創部保護（スプリンティング）・ドレーン保持・めまいや血圧確認といった具体的な援助を提案する。いきなり歩行を強制せず、Aさんの同意を得ながらまずはギャッジアップや端座位など段階的な離床を提案する（拒否が続く場合は無理に強制しない）。';
+
+    if (decision === 'empathetic-stepwise-mobilization') {
+      strengths.push('患者の意思と痛みに配慮しながら、疼痛緩和・目的説明・段階的な離床を提案する最も適切な看護判断（A）を選択できました。');
+      if (rationaleEval.matchedElements.length > 0) {
+        strengths.push(`声かけ記述において「${rationaleEval.matchedElements.join('」「')}」が表現されています。`);
+      }
+      if (rationaleEval.missingHints.length > 0) {
+        furtherPoints.push(...rationaleEval.missingHints.map(h => `声かけ記述でさらに補うとよい視点：${h}`));
+      }
+
       return {
         patientOutcome: 'STABLE',
-        clinicalReasoning: criticalCount >= 2 ? 'SUFFICIENT_ASSESSMENT' : 'APPROPRIATE_DECISION',
-        resultType: 'Safe prioritization, pain-airway-mobilization integration, and reassessment',
-        title: '安全性を踏まえた優先順位判断と、疼痛管理・排痰・段階的離床・再評価の統合',
-        story: `あなたたちは「すぐに離床させる」前にまず立ち止まり、酸素化が悪化しているAさんの現在の呼吸状態・酸素投与・胸腔ドレーンを再評価し、医師へ適切に報告・相談しました。\n\nそのうえで、咳嗽時NRS 7の疼痛に対して鎮痛効果を整え、ファーラー位への体位調整と創部保護（スプリンティング）を行いながら深呼吸・ハフィングを支援したところ、Aさんは粘稠な白色痰を喀出することができました。\n呼吸状態と疼痛が落ち着いていることを確認しながら端座位・立位へと段階的に離床を進め、援助後の再評価では【SpO₂ 97%（O₂ 2L/分）、呼吸数 18回/分、左下肺野の呼吸音改善、咳嗽時疼痛 NRS 3】へと回復が確認されました。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '「疼痛管理」「呼吸・排痰援助」「体位調整」「段階的な早期離床」「実施後の再評価」が、Aさんの病態生理の上でどのようにつながっていたか振り返ってみましょう。',
+        clinicalReasoning: (checkedCount >= 4 && (rationaleEval.levelCode === 'LEVEL_3' || rationaleEval.levelCode === 'LEVEL_4')) ? 'SUFFICIENT_ASSESSMENT' : 'APPROPRIATE_DECISION',
+        resultType: 'Patient-centered safe stepwise mobilization',
+        title: '安全性と患者の意思を尊重した段階的離床の提案と教育的声かけ',
+        story: `あなたたちはAさんの「動くと少し痛いので、今日はやめておきたいです」という訴えを丁寧に受け止め、体動時疼痛（NRS 5）への鎮痛対応と創部・ドレーンの保護を提案しながら、早期離床の目的を分かりやすく説明しました。\n\nAさんは「いきなり歩かされるわけじゃなくて、痛み止めを使ってまずはベッドを起こして座るところからならやってみようかな」と納得され、めまいや血圧低下・SpO₂低下なく安全に端座位をとることができました。\n\n${rationaleEval.feedback}\n${rationaleEval.formativeNote}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: '自分たちが記述した「Aさんへの声かけ」に、①痛みや不安の受け止め、②早期離床の目的、③具体的な安全援助、④同意を得ながらの段階的提案が含まれているか、グループ間で共有してみましょう。',
         rationaleEvaluation: rationaleEval
       };
-    } else if (decision === 'immediate-walk-immediately' || decision === 'immediate-walk-first') {
-      return {
-        patientOutcome: 'DETERIORATED',
-        clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Forced mobilization without safety check or pain control',
-        title: 'PATIENT CONDITION CHANGED（安全確認・鎮痛なしの無理な離床による状態悪化）',
-        story: `「早期離床が大事だから」と、現在の呼吸状態の再評価・報告や鎮痛を行わないまま、SpO₂ 93%・疼痛NRS 7のAさんを無理に立たせて歩かせようとしました。\n\nその前に、Aさんは今、安全に離床を進めてよい状態だったでしょうか？\n強い創部痛と酸素消費量の増大によりAさんは激しい息苦しさと冷汗を訴え、SpO₂は88%まで急低下し、ベッドへ戻さざるを得なくなりました。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '「早期離床が有効である」という一般論と、「今この瞬間のAさんが安全に離床できる状態か」を判断することには、どのような違いがあるでしょうか？',
-        rationaleEvaluation: rationaleEval
-      };
-    } else if (decision === 'cancel-all-care-rest') {
+    } else if (decision === 'force-standing-immediately') {
+      furtherPoints.push('早期離床は必要ですが、患者の痛み（体動時NRS 5）や拒否の意思を無視して歩行を強制することは、苦痛の増強や信頼関係の破綻、起立性低血圧・転倒リスクを招きます。');
       return {
         patientOutcome: 'CONDITION_CHANGED',
         clinicalReasoning: 'INAPPROPRIATE_DECISION',
-        resultType: 'Abandoned airway clearance and positioning due to pain/hypoxia',
-        title: 'PATIENT CONDITION CHANGED（排痰援助・体位調整の放棄による無気肺の遷延）',
-        story: `Aさんの「痛いから動きたくない」という言葉とSpO₂ 93%という数値から、排痰援助や体位調整、段階的離床のすべてを中止し、そのまま仰臥位で寝かせ続けました。\n\nその結果、気道内の粘稠痰はさらに貯留し、翌日には左下葉の無気肺の拡大と38.5℃の発熱（術後肺炎）を併発してしまいました。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '「無理に歩かせないこと」と「鎮痛・体位調整・排痰援助まで何もせず寝かせきりにすること」は全く異なります。動きたくないと話す患者に、看護師はどう関わるべきだったでしょうか？',
+        resultType: 'Forced mobilization disregarding patient pain and autonomy',
+        title: 'PATIENT CONDITION CHANGED（患者の意思・疼痛を無視した離床強制による苦痛増強）',
+        story: `痛みを訴えて離床をためらうAさんに対し、十分な鎮痛や段階的な提案を行わずに歩行を強行しようとしたため、Aさんは強い創部痛とめまいを訴え、離床への拒否感がさらに強まってしまいました。\n早期離床の必要性と、患者の意思尊重・疼痛緩和・段階的な安全確認を両立させる関わりが求められます。\n\n${rationaleEval.feedback}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: '患者が「痛いからやめておきたい」と話したとき、強制するのでも単純に諦めるのでもなく、看護師としてどのような提案ができるでしょうか？',
         rationaleEvaluation: rationaleEval
       };
-    } else {
-      // give-painkiller-only
+    } else if (decision === 'accept-bedrest-no-explanation') {
+      furtherPoints.push('患者の言葉をそのまま受け入れて終日安静にするだけでは、なぜ離床を希望しないのか（痛み・ドレーン不安）の解決や、無気肺・肺炎予防という看護の専門的支援につながりません。');
       return {
         patientOutcome: 'CONDITION_CHANGED',
         clinicalReasoning: 'PARTIAL_ASSESSMENT',
-        resultType: 'Analgesia only without airway clearance, reporting, or reassessment',
-        title: 'PATIENT CONDITION CHANGED（鎮痛薬投与のみで排痰・離床・再評価につながらず）',
-        story: `鎮痛薬のみを投与して「痛みが落ち着いたら休んでくださいね」と退室し、呼吸状態の報告や、鎮痛効果が出たタイミングでの深呼吸・排痰援助、段階的離床、および実施後の再評価を行いませんでした。\n\nAさんは痛みが和らいだもののそのまま眠ってしまい、浅呼吸と分泌物貯留が改善されないままSpO₂低下が遷延しました。\n\n${rationaleEval.feedback}`,
-        reflectionQuestion: '術後の鎮痛は「ただ眠らせるため」だけでなく、「深呼吸・有効な咳嗽（排痰）・段階的離床を行える状態を整えるため」に行います。鎮痛後にどのような援助と再評価が必要だったでしょうか？',
+        resultType: 'Passive bedrest without pain relief or education',
+        title: 'PATIENT CONDITION CHANGED（理由の傾聴・疼痛緩和・目的説明の不足による離床機会の喪失）',
+        story: `Aさんの「今日はやめておきたい」という言葉に対し、痛みの緩和策や早期離床の目的、ベッドを少し起こすといった段階的な代替案を提示しないまま終日臥床としました。\n患者の意思を無理に曲げない姿勢は大切ですが、痛みや不安を和らげて「これならできるかもしれない」と患者自身が選択できるよう支援することが看護の役割です。\n\n${rationaleEval.feedback}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: '「患者の意思を尊重すること」と「何も説明・援助せずに寝かせたままにすること」の違いは何でしょうか？',
+        rationaleEvaluation: rationaleEval
+      };
+    } else {
+      furtherPoints.push('術後初回離床では起立性低血圧・めまい・転倒や胸腔ドレーン牽引のリスクがあるため、患者一人で行わせず必ず看護師が付き添って段階的に評価します。');
+      return {
+        patientOutcome: 'DETERIORATED',
+        clinicalReasoning: 'INAPPROPRIATE_DECISION',
+        resultType: 'Unattended first mobilization risk',
+        title: 'PATIENT CONDITION CHANGED（看護師の安全確認・付き添い欠如による転倒・ドレーン抜去リスク）',
+        story: `鎮痛薬だけを渡してAさん一人で起き上がるよう伝えた結果、起き上がった際にめまい（起立性低血圧）とドレーンチューブの引っ張りが生じ、あわや転倒・ドレーン抜去となる危険な状況が生じました。\n術後初回離床では、必ず看護師が付き添い、バイタルサイン・めまい・ドレーン管理を行いながら段階的に進めます。\n\n${rationaleEval.feedback}`,
+        strengths,
+        furtherPoints,
+        modelThinking,
+        reflectionQuestion: '術後初回離床において、看護師がベッドサイドで直接確認・介助しなければならない安全上のポイントは何ですか？',
         rationaleEvaluation: rationaleEval
       };
     }
@@ -526,6 +609,9 @@ function evaluateSceneResult(sceneId, selectedInfo, decision, rationaleText = ''
     resultType: 'Standard evaluation',
     title: '評価完了',
     story: 'アセスメントおよび臨床判断を完了しました。',
+    strengths: [],
+    furtherPoints: [],
+    modelThinking: '',
     reflectionQuestion: '今回の判断プロセスについてグループで振り返ってみましょう。',
     rationaleEvaluation: rationaleEval
   };
@@ -557,12 +643,30 @@ function buildClientPayload(groupState) {
       budget: s.budget,
       remainingBudget: s.remainingBudget,
       decision: s.decision,
+      selectedDecisions: s.selectedDecisions || [],
       rationaleText: s.rationaleText,
       submittedAt: s.submittedAt,
       result: isReleased ? s.result : null,
       canonicalStory: isResolved ? scenarioData.scenes[String(i)]?.canonicalStory : null
     };
   }
+
+  // BEFORE (Scene 1) と AFTER (Scene 2) の比較データ構築
+  const s1 = groupState.scenes[1];
+  const s2 = groupState.scenes[2];
+  const s1Def = scenarioData.scenes['1'];
+  const s1SelectedLabels = (s1?.selectedInfo || []).map(id => {
+    const found = (s1Def?.infoItems || []).find(item => item.id === id);
+    return found ? found.label : id;
+  });
+
+  const beforeAfterComparison = {
+    beforeSelectedLabels: s1SelectedLabels,
+    beforePredictionText: s1?.rationaleText || '（未入力）',
+    afterActualVitals: '酸素3L/分（鼻カニューレ）、SpO₂ 96％、呼吸数 9回/分、浅くゆっくりした呼吸、傾眠傾向、安静時NRS 5・咳嗽時NRS 8、両側背側肺底部で呼吸音減弱（傍脊椎ブロック＋オピオイドPCA使用中）',
+    afterAssessmentText: s2?.rationaleText || '（未入力）',
+    comparisonPoint: '【比較の視点】術前に予測したリスク（気流閉塞・喫煙による排痰困難や麻酔・肺切除・疼痛による浅呼吸・無気肺リスク）に対し、術直後の実際では「酸素3L/分下でSpO₂ 96％は一見保たれているものの、麻酔薬・オピオイドの影響や疼痛も重なって呼吸数9回/分・浅呼吸・傾眠傾向という肺胞換気量の低下（呼吸抑制疑い）と背側呼吸音減弱」が出現しています。「SpO₂だけでは換気状態を評価できない」ことを術前予測と対比して確認しましょう。'
+  };
 
   return {
     groupId: groupState.groupId,
@@ -572,7 +676,8 @@ function buildClientPayload(groupState) {
     sceneStatus: globalSceneStatus,
     sceneStatuses: sceneStatuses,
     scenario: scenarioData,
-    scenes: sanitizedScenes
+    scenes: sanitizedScenes,
+    beforeAfterComparison
   };
 }
 
@@ -587,7 +692,23 @@ function buildAdminSummary() {
     groups: groupsList.map(g => {
       const currentSceneState = g.scenes[g.currentScene];
       const sceneDef = scenarioData.scenes[String(g.currentScene)];
-      const decObj = (sceneDef?.decisions || []).find(d => d.id === currentSceneState.decision);
+      const itemMap = {};
+      (sceneDef?.infoItems || []).forEach(it => { itemMap[it.id] = it.label; });
+
+      let decisionLabel = '未決定';
+      if (sceneDef?.questionType === 'multi_select') {
+        decisionLabel = (currentSceneState.selectedDecisions && currentSceneState.selectedDecisions.length > 0)
+          ? `選択：${currentSceneState.selectedDecisions.join('・')}`
+          : '未選択';
+      } else if (sceneDef?.questionType === 'free_text_only') {
+        decisionLabel = currentSceneState.submittedAt ? 'カード選択＋自由記述提出済' : '作成中';
+      } else {
+        const decObj = (sceneDef?.decisions || []).find(d => d.id === currentSceneState.decision);
+        decisionLabel = decObj
+          ? decObj.label.slice(0, 28) + (decObj.label.length > 28 ? '…' : '')
+          : (currentSceneState.decision || '未決定');
+      }
+
       return {
         groupId: g.groupId,
         groupName: g.groupName,
@@ -596,29 +717,17 @@ function buildAdminSummary() {
         budgetUsed: currentSceneState.budget - currentSceneState.remainingBudget,
         budgetTotal: currentSceneState.budget,
         selectedInfo: currentSceneState.selectedInfo,
+        selectedInfoLabels: currentSceneState.selectedInfo.map(id => itemMap[id] || id),
         decision: currentSceneState.decision,
-        decisionLabel: decObj ? decObj.label.split('．')[0] + '．' + decObj.label.split('．').slice(1).join('．').slice(0, 24) + '...' : (currentSceneState.decision || '未決定'),
+        selectedDecisions: currentSceneState.selectedDecisions || [],
+        decisionLabel,
         rationaleText: currentSceneState.rationaleText || '',
         rationaleLevel: currentSceneState.result?.rationaleEvaluation?.level || '未評価',
         rationaleLevelCode: currentSceneState.result?.rationaleEvaluation?.levelCode || 'NONE',
         resultType: currentSceneState.result?.resultType || '未判定',
         patientOutcome: currentSceneState.result?.patientOutcome || '未確定',
         clinicalReasoning: currentSceneState.result?.clinicalReasoning || '未確定',
-        submittedAt: currentSceneState.submittedAt,
-        allScenes: Object.keys(g.scenes).reduce((acc, sid) => {
-          const sc = g.scenes[sid];
-          acc[sid] = {
-            phase: sc.phase,
-            selectedInfo: sc.selectedInfo,
-            decision: sc.decision,
-            rationaleText: sc.rationaleText || '',
-            rationaleLevel: sc.result?.rationaleEvaluation?.level || '未評価',
-            patientOutcome: sc.result?.patientOutcome || '未確定',
-            clinicalReasoning: sc.result?.clinicalReasoning || '未確定',
-            highlightedInDebrief: !!sc.highlightedInDebrief
-          };
-          return acc;
-        }, {})
+        submittedAt: currentSceneState.submittedAt
       };
     }),
     debrief: {}
@@ -629,14 +738,28 @@ function buildAdminSummary() {
     const sceneDef = scenarioData.scenes[sid];
     if (!sceneDef) continue;
 
+    const itemMap = {};
     const infoCounts = {};
     (sceneDef.infoItems || []).forEach(item => {
-      infoCounts[item.id] = { label: item.label, count: 0, percentage: 0 };
+      itemMap[item.id] = item.label;
+      infoCounts[item.id] = {
+        id: item.id,
+        label: item.label,
+        priorityLevel: item.priorityLevel || (item.isCritical ? 'high' : 'supplementary'),
+        count: 0,
+        percentage: 0
+      };
     });
 
     const decisionCounts = {};
     (sceneDef.decisions || []).forEach(dec => {
-      decisionCounts[dec.id] = { label: dec.label, count: 0, percentage: 0 };
+      decisionCounts[dec.id] = {
+        id: dec.id,
+        label: dec.label,
+        isCorrect: !!dec.isCorrect,
+        count: 0,
+        percentage: 0
+      };
     });
 
     const outcomeCounts = {
@@ -648,6 +771,7 @@ function buildAdminSummary() {
     const reasoningCounts = {};
     const rationaleEntries = [];
     let totalSubmissionsInScene = 0;
+    let exactMultiSelectMatches = 0;
 
     groupsList.forEach((g, idx) => {
       const s = g.scenes[i];
@@ -656,9 +780,22 @@ function buildAdminSummary() {
         s.selectedInfo.forEach(infoId => {
           if (infoCounts[infoId]) infoCounts[infoId].count++;
         });
-        if (s.decision && decisionCounts[s.decision]) {
-          decisionCounts[s.decision].count++;
+
+        if (sceneDef.questionType === 'multi_select') {
+          const chosen = Array.isArray(s.selectedDecisions) ? s.selectedDecisions : [];
+          chosen.forEach(dId => {
+            if (decisionCounts[dId]) decisionCounts[dId].count++;
+          });
+          const correctSet = new Set(sceneDef.correctDecisions || ['A', 'B', 'D', 'F']);
+          if (chosen.length === correctSet.size && chosen.every(c => correctSet.has(c))) {
+            exactMultiSelectMatches++;
+          }
+        } else {
+          if (s.decision && decisionCounts[s.decision]) {
+            decisionCounts[s.decision].count++;
+          }
         }
+
         if (s.result) {
           if (outcomeCounts[s.result.patientOutcome] !== undefined) {
             outcomeCounts[s.result.patientOutcome]++;
@@ -668,14 +805,26 @@ function buildAdminSummary() {
             reasoningCounts[cr] = (reasoningCounts[cr] || 0) + 1;
           }
         }
-        const decObj = (sceneDef.decisions || []).find(d => d.id === s.decision);
-        const shortDec = decObj ? decObj.label.slice(0, 28) + (decObj.label.length > 28 ? '…' : '') : (s.decision || '');
+
+        let shortDec = '';
+        if (sceneDef.questionType === 'multi_select') {
+          shortDec = `選択：${(s.selectedDecisions || []).join('・') || 'なし'}`;
+        } else if (sceneDef.questionType === 'free_text_only') {
+          shortDec = `選択カード数：${s.selectedInfo.length}枚`;
+        } else {
+          const decObj = (sceneDef.decisions || []).find(d => d.id === s.decision);
+          shortDec = decObj ? decObj.label.slice(0, 30) + (decObj.label.length > 30 ? '…' : '') : (s.decision || '');
+        }
+
         rationaleEntries.push({
           groupId: g.groupId,
           groupName: g.groupName,
           anonymousLabel: `グループ ${String.fromCharCode(65 + (idx % 26))}`,
           decisionId: s.decision,
+          selectedDecisions: s.selectedDecisions || [],
           decisionShort: shortDec,
+          selectedInfoLabels: s.selectedInfo.map(id => itemMap[id] || id),
+          beforePredictionText: g.scenes[1]?.rationaleText || '',
           rationaleText: s.rationaleText || '',
           rationaleLevel: s.result?.rationaleEvaluation?.level || '未評価',
           rationaleLevelCode: s.result?.rationaleEvaluation?.levelCode || 'NONE',
@@ -697,10 +846,14 @@ function buildAdminSummary() {
 
     summary.debrief[i] = {
       sceneId: i,
+      stepLabel: sceneDef.stepLabel,
+      questionType: sceneDef.questionType,
       clinicalQuestion: sceneDef.clinicalQuestion,
       debriefFocus: sceneDef.debriefFocus,
       debriefQuestions: sceneDef.debriefQuestions || [],
       rationalePrompt: sceneDef.rationalePrompt || '',
+      correctDecisions: sceneDef.correctDecisions || [],
+      exactMultiSelectMatches,
       totalSubmissions: totalSubmissionsInScene,
       infoCounts: Object.values(infoCounts),
       decisionCounts: Object.values(decisionCounts),
@@ -770,10 +923,10 @@ io.on('connection', (socket) => {
 
     const sceneState = groupState.scenes[sid];
     if (sceneState.phase !== 'assessment') {
-      return socket.emit('error-msg', { message: 'すでに判断を送信済みです' });
+      return socket.emit('error-msg', { message: 'すでに回答を送信済みです' });
     }
     if (sceneState.remainingBudget <= 0) {
-      return socket.emit('error-msg', { message: 'Information Budgetがありません' });
+      return socket.emit('error-msg', { message: 'これ以上カードを選択できません' });
     }
     if (sceneState.selectedInfo.includes(infoId)) {
       return socket.emit('error-msg', { message: 'すでに確認済みの情報です' });
@@ -787,7 +940,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('submit-decision', (data) => {
-    const { groupId, sceneId, decisionId, rationaleText } = data || {};
+    const { groupId, sceneId, decisionId, selectedDecisions, rationaleText } = data || {};
     if (!groups.has(groupId)) return;
 
     const groupState = groups.get(groupId);
@@ -799,35 +952,57 @@ io.on('connection', (socket) => {
 
     const sceneState = groupState.scenes[sid];
     if (sceneState.phase !== 'assessment') {
-      return socket.emit('error-msg', { message: 'すでに送信済みです' });
+      return socket.emit('error-msg', { message: 'すでに送信済みです（回答確定後は変更できません）' });
     }
 
     const sceneDef = scenarioData.scenes[String(sid)];
-    const minLen = sceneDef?.rationaleMinLength ?? 30;
+    const qType = sceneDef?.questionType || 'single_select_and_free_text';
+    const minLen = sceneDef?.rationaleMinLength ?? 50;
     const maxLen = sceneDef?.rationaleMaxLength ?? 400;
     const cleanedRationale = (rationaleText || '').trim();
 
-    if (!decisionId) {
-      return socket.emit('error-msg', { message: '看護判断の選択肢（A〜D）を選択してください' });
-    }
-    if (cleanedRationale.length < minLen) {
-      return socket.emit('error-msg', { message: `アセスメント理由を${minLen}文字以上で記述してください（現在${cleanedRationale.length}文字）` });
-    }
-    if (cleanedRationale.length > maxLen) {
-      return socket.emit('error-msg', { message: `アセスメント理由は${maxLen}文字以内で記述してください` });
+    let finalDecisionId = decisionId || null;
+    let finalSelectedDecisions = Array.isArray(selectedDecisions) ? selectedDecisions : [];
+
+    if (qType === 'multi_select') {
+      if (finalSelectedDecisions.length === 0 && finalDecisionId) {
+        finalSelectedDecisions = String(finalDecisionId).split(',').map(s => s.trim()).filter(Boolean);
+      }
+      if (finalSelectedDecisions.length === 0) {
+        return socket.emit('error-msg', { message: '正しいと考えるアセスメントを1つ以上選択してください' });
+      }
+      finalSelectedDecisions.sort();
+      finalDecisionId = finalSelectedDecisions.join(',');
+    } else if (qType === 'free_text_only') {
+      if (sceneState.selectedInfo.length === 0) {
+        return socket.emit('error-msg', { message: 'アセスメントに重要な患者情報カードを1枚以上選択してください' });
+      }
+      finalDecisionId = finalDecisionId || 'preop-assessment-complete';
+    } else {
+      if (!finalDecisionId) {
+        return socket.emit('error-msg', { message: '看護判断の選択肢（A〜D）を選択してください' });
+      }
     }
 
-    sceneState.decision = decisionId;
+    if (minLen > 0 && cleanedRationale.length < minLen) {
+      return socket.emit('error-msg', { message: `自由記述を${minLen}文字以上で入力してください（現在${cleanedRationale.length}文字）` });
+    }
+    if (cleanedRationale.length > maxLen) {
+      return socket.emit('error-msg', { message: `自由記述は${maxLen}文字以内で入力してください` });
+    }
+
+    sceneState.decision = finalDecisionId;
+    sceneState.selectedDecisions = finalSelectedDecisions;
     sceneState.rationaleText = cleanedRationale;
     sceneState.submittedAt = new Date().toISOString();
     sceneState.phase = 'submitted';
 
     // 内部で事前にResultを算出・記録（学生にはRESULTS_RELEASEDまで非公開）
-    sceneState.result = evaluateSceneResult(sid, sceneState.selectedInfo, decisionId, cleanedRationale);
+    sceneState.result = evaluateSceneResult(sid, sceneState.selectedInfo, finalDecisionId, cleanedRationale, finalSelectedDecisions);
 
     socket.emit('game-state-updated', buildClientPayload(groupState));
     io.emit('admin-summary-updated', buildAdminSummary());
-    console.log(`[Student] Decision & Rationale submitted by ${groupState.groupName} for Scene ${sid}: ${decisionId} (${cleanedRationale.length} chars)`);
+    console.log(`[Student] Submitted by ${groupState.groupName} for Scene ${sid}: decision=${finalDecisionId} (${cleanedRationale.length} chars)`);
   });
 
   // 教員管理画面
@@ -878,8 +1053,8 @@ io.on('connection', (socket) => {
     groups.forEach(g => {
       const s = g.scenes[sid];
       if (s && !s.result) {
-        const defaultDec = scenarioData.scenes[String(sid)]?.decisions?.[0]?.id || 'predict-high-risk';
-        s.result = evaluateSceneResult(sid, s.selectedInfo, s.decision || defaultDec, s.rationaleText || '');
+        const defaultDec = scenarioData.scenes[String(sid)]?.decisions?.[0]?.id || 'preop-assessment-complete';
+        s.result = evaluateSceneResult(sid, s.selectedInfo, s.decision || defaultDec, s.rationaleText || '', s.selectedDecisions || []);
       }
     });
 

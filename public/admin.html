@@ -41,7 +41,7 @@
       <div class="admin-tabs">
         <button class="admin-tab active" data-tab="control">🎮 Scene進行制御</button>
         <button class="admin-tab" data-tab="groups">👥 グループ進行＆記述一覧</button>
-        <button class="admin-tab" data-tab="summary">📊 回答・アセスメント記述集計</button>
+        <button class="admin-tab" data-tab="summary">📊 Scene別回答比較・集計</button>
       </div>
 
       <!-- 1. Scene進行制御タブ -->
@@ -65,9 +65,9 @@
         </div>
 
         <div class="control-workflow-guide">
-          <h3>📌 授業進行モデル（各Sceneの6段階進行 ＋ 自由記述共有）</h3>
+          <h3>📌 授業進行モデル（BEFORE ➔ AFTER ➔ AFTER 2 ➔ NEXT）</h3>
           <p class="text-muted">
-            ① <strong>OPEN SCENE</strong>（開放） → ② 学生が情報選択・判断＋アセスメント記述 → ③ <strong>SUBMIT & WAIT</strong>（結果は非公開） → ④ <strong>RELEASE RESULTS</strong>（個別結果・記述ルーブリック評価を一斉公開） → ⑤ <strong>全体討議（Debrief Modeで記述ピックアップ共有）</strong> → ⑥ <strong>RESOLVE SCENE</strong>（全員Canonical Storyへ合流） → 次Sceneへ
+            ① <strong>OPEN SCENE</strong>（開放） → ② 学生が情報選択・判断・自由記述 → ③ <strong>SUBMIT & WAIT</strong>（結果は非公開） → ④ <strong>RELEASE RESULTS</strong>（個別結果・形成的フィードバックを公開） → ⑤ <strong>Debrief Mode（全体比較・ピックアップ共有）</strong> → ⑥ <strong>RESOLVE SCENE</strong>（模範例・Canonical Storyへ合流） → 次Sceneへ
           </p>
         </div>
 
@@ -80,7 +80,7 @@
       <div id="tab-groups" class="admin-tab-content">
         <div class="admin-card full-width">
           <div class="card-header-flex">
-            <h3>参加グループ状況＆記述アセスメント一覧（<span id="group-count">0</span>グループ）</h3>
+            <h3>参加グループ状況＆自由記述一覧（<span id="group-count">0</span>グループ）</h3>
           </div>
           <div class="table-responsive">
             <table class="group-table">
@@ -89,11 +89,11 @@
                   <th>グループ名</th>
                   <th>現在のScene</th>
                   <th>進行状態</th>
-                  <th>Budget</th>
+                  <th>選択カード数</th>
                   <th>選択した情報</th>
-                  <th>最終判断</th>
-                  <th>記述アセスメント（根拠）</th>
-                  <th>到達水準</th>
+                  <th>判断 / 選択結果</th>
+                  <th>自由記述（全文表示可）</th>
+                  <th>ルーブリック</th>
                   <th>Outcome</th>
                 </tr>
               </thead>
@@ -110,10 +110,10 @@
         <div class="admin-card full-width">
           <div class="scene-selector-bar">
             <span>表示対象Scene：</span>
-            <button class="btn btn-sm active" data-summary-scene="1">SCENE 1 (①術前リスク予測)</button>
-            <button class="btn btn-sm" data-summary-scene="2">SCENE 2 (②変化・③情報収集)</button>
-            <button class="btn btn-sm" data-summary-scene="3">SCENE 3 (④統合アセスメント)</button>
-            <button class="btn btn-sm" data-summary-scene="4">SCENE 4 (⑤優先順位・⑥看護)</button>
+            <button class="btn btn-sm active" data-summary-scene="1">SCENE 1：BEFORE (術前呼吸機能)</button>
+            <button class="btn btn-sm" data-summary-scene="2">SCENE 2：AFTER (術直後呼吸状態)</button>
+            <button class="btn btn-sm" data-summary-scene="3">SCENE 3：AFTER 2 (胸腔ドレーン)</button>
+            <button class="btn btn-sm" data-summary-scene="4">SCENE 4：NEXT (初回離床・声かけ)</button>
           </div>
           <div id="summary-charts-content" class="summary-charts"></div>
         </div>
@@ -126,17 +126,17 @@
     <header class="debrief-header">
       <div class="debrief-header-info">
         <h1>CLINICAL REASONING DEBRIEFING — 第4回 肺がん患者の看護</h1>
-        <span class="debrief-sub">全体討議用スクリーン（グループ名は匿名表示・アセスメント記述ピックアップ対応）</span>
+        <span class="debrief-sub">全体討議用スクリーン（グループ名は匿名表示・記述ピックアップ対応）</span>
       </div>
       <button id="btn-exit-debrief" class="btn btn-secondary">管理画面へ戻る</button>
     </header>
 
     <div class="debrief-container">
       <div class="debrief-scene-nav">
-        <button class="btn debrief-nav-btn active" data-debrief-scene="1">SCENE 1 — ①術前リスク予測</button>
-        <button class="btn debrief-nav-btn" data-debrief-scene="2">SCENE 2 — ②術後変化・③情報収集</button>
-        <button class="btn debrief-nav-btn" data-debrief-scene="3">SCENE 3 — ④統合アセスメント</button>
-        <button class="btn debrief-nav-btn" data-debrief-scene="4">SCENE 4 — ⑤優先順位・⑥回復看護</button>
+        <button class="btn debrief-nav-btn active" data-debrief-scene="1">SCENE 1：BEFORE（術前呼吸機能）</button>
+        <button class="btn debrief-nav-btn" data-debrief-scene="2">SCENE 2：AFTER（術直後の呼吸状態）</button>
+        <button class="btn debrief-nav-btn" data-debrief-scene="3">SCENE 3：AFTER 2（胸腔ドレーン）</button>
+        <button class="btn debrief-nav-btn" data-debrief-scene="4">SCENE 4：NEXT（初回離床の看護判断）</button>
       </div>
 
       <div id="debrief-main-view" class="debrief-view"></div>

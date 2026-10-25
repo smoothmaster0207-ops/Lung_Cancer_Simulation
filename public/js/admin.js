@@ -8,10 +8,10 @@
   let activeDebriefScene = 1;
 
   const sceneNames = {
-    1: 'SCENE 1 — BEFORE（① 術前リスクを予測する）',
-    2: 'SCENE 2 — DURING（② 術後の変化に気づき、③ 必要な情報を選んで収集する）',
-    3: 'SCENE 3 — AFTER（④ 追加情報を統合してアセスメントする・最重要）',
-    4: 'SCENE 4 — NEXT（⑤ 看護の優先順位を判断し、⑥ 回復促進の看護につなげる）'
+    1: 'SCENE 1：BEFORE（術前呼吸機能のアセスメント）',
+    2: 'SCENE 2：AFTER（術直後の呼吸状態）',
+    3: 'SCENE 3：AFTER 2（胸腔ドレーンのアセスメント）',
+    4: 'SCENE 4：NEXT（初回離床の看護判断）'
   };
 
   function init() {
@@ -228,7 +228,7 @@
       let statusClass = 'badge-locked';
       if (status === 'ACTIVE') { statusBadgeLabel = 'ACTIVE (開放中)'; statusClass = 'badge-active'; }
       if (status === 'RESULTS_RELEASED') { statusBadgeLabel = 'RESULTS RELEASED (結果公開中)'; statusClass = 'badge-released'; }
-      if (status === 'RESOLVED') { statusBadgeLabel = 'RESOLVED (解決・公式経過)'; statusClass = 'badge-resolved'; }
+      if (status === 'RESOLVED') { statusBadgeLabel = 'RESOLVED (解決・模範例公開)'; statusClass = 'badge-resolved'; }
 
       let submittedCount = 0;
       (summaryData.groups || []).forEach(g => {
@@ -255,36 +255,36 @@
       if (status === 'LOCKED') {
         const btnOpen = createButton('▶ OPEN SCENE（Sceneを開放）', 'btn-primary', () => {
           showModal(
-            `Scene ${i} の開放`,
-            `Scene ${i} を開放しますか？\n学生端末でこのSceneの情報収集・判断・自由記述が可能になります。`,
+            `${sceneNames[i]} の開放`,
+            `${sceneNames[i]} を開放しますか？\n学生端末でこのSceneの操作・回答が可能になります。`,
             () => socket.emit('admin-open-scene', { sceneId: i })
           );
         });
         btnGroup.appendChild(btnOpen);
       } else if (status === 'ACTIVE') {
-        const btnRelease = createButton('📢 RELEASE RESULTS（個別結果を一斉公開）', 'btn-success', () => {
+        const btnRelease = createButton('📢 RELEASE RESULTS（結果・フィードバックを一斉公開）', 'btn-success', () => {
           showModal(
-            `Scene ${i} の結果公開`,
-            `全グループに各々の情報収集・判断・自由記述に応じた個別Resultを公開しますか？\n公開後、Debrief Modeで全体討議を行ってください。`,
+            `${sceneNames[i]} の結果公開`,
+            `全グループに個別Result（模範的な思考例・良かった点・さらに考えるとよい視点）を公開しますか？\n公開後、Debrief Modeで全体共有・討議を行ってください。`,
             () => socket.emit('admin-release-results', { sceneId: i })
           );
         });
         btnGroup.appendChild(btnRelease);
       } else if (status === 'RESULTS_RELEASED') {
-        const btnResolve = createButton('✅ RESOLVE SCENE（公式経過Canonical Storyへ合流）', 'btn-info', () => {
+        const btnResolve = createButton('✅ RESOLVE SCENE（統合模範例・Canonical Storyへ合流）', 'btn-info', () => {
           showModal(
-            `Scene ${i} の解決（Resolve）`,
-            `全体討議を終了し、全グループの画面に授業上の模範アセスメント・正式経過（Canonical Story）を表示しますか？`,
+            `${sceneNames[i]} の解決（Resolve）`,
+            `全体討議を終了し、全グループの画面に統合アセスメント模範例（Canonical Story）を表示しますか？`,
             () => socket.emit('admin-resolve-scene', { sceneId: i })
           );
         });
         btnGroup.appendChild(btnResolve);
       } else if (status === 'RESOLVED') {
         if (i < 4) {
-          const btnNext = createButton(`🚀 OPEN NEXT SCENE（Scene ${i + 1} を開放）`, 'btn-primary', () => {
+          const btnNext = createButton(`🚀 OPEN NEXT SCENE（${sceneNames[i + 1]} を開放）`, 'btn-primary', () => {
             showModal(
               `次のScene ${i + 1} の開放`,
-              `全グループを一斉に次のScene ${i + 1} へ進めますか？`,
+              `全グループを一斉に次の ${sceneNames[i + 1]} へ進めますか？`,
               () => socket.emit('admin-open-next-scene', { currentSceneId: i })
             );
           });
@@ -309,7 +309,7 @@
     return btn;
   }
 
-  // 2. グループ一覧テーブルの描画（記述アセスメント列付き）
+  // 2. グループ一覧テーブルの描画
   function renderGroupsTable() {
     const tbody = document.getElementById('groups-table-body');
     const countEl = document.getElementById('group-count');
@@ -326,11 +326,11 @@
     groups.forEach(g => {
       const tr = document.createElement('tr');
 
-      let phaseLabel = 'アセスメント中';
+      let phaseLabel = '検討・入力中';
       let phaseClass = 'phase-thinking';
-      if (g.scenePhase === 'submitted') { phaseLabel = '送信済・結果待ち'; phaseClass = 'phase-submitted'; }
+      if (g.scenePhase === 'submitted') { phaseLabel = '送信済・WAIT中'; phaseClass = 'phase-submitted'; }
       if (g.scenePhase === 'result') { phaseLabel = 'Result確認中'; phaseClass = 'phase-result'; }
-      if (g.scenePhase === 'resolved') { phaseLabel = '公式経過確認済'; phaseClass = 'phase-resolved'; }
+      if (g.scenePhase === 'resolved') { phaseLabel = '模範例確認済'; phaseClass = 'phase-resolved'; }
 
       let outcomeBadge = '―';
       if (g.patientOutcome && g.patientOutcome !== '未確定') {
@@ -338,19 +338,23 @@
       }
 
       const rationalePreview = g.rationaleText
-        ? escapeHtml(g.rationaleText.slice(0, 32)) + (g.rationaleText.length > 32 ? '…' : '')
-        : '<span class="text-muted">未入力</span>';
+        ? escapeHtml(g.rationaleText.slice(0, 34)) + (g.rationaleText.length > 34 ? '…' : '')
+        : '<span class="text-muted">―</span>';
 
-      const levelBadge = g.rationaleText
+      const levelBadge = g.rationaleLevel && g.rationaleLevel !== '未評価'
         ? `<span class="rationale-level-badge level-${(g.rationaleLevelCode || 'none').toLowerCase()}">${escapeHtml(g.rationaleLevel)}</span>`
         : '―';
+
+      const selectedLabelsStr = (g.selectedInfoLabels && g.selectedInfoLabels.length > 0)
+        ? g.selectedInfoLabels.join('、')
+        : '未選択';
 
       tr.innerHTML = `
         <td><strong>${escapeHtml(g.groupName)}</strong></td>
         <td>Scene ${g.currentScene}</td>
         <td><span class="phase-tag ${phaseClass}">${phaseLabel}</span></td>
         <td>${g.budgetUsed} / ${g.budgetTotal}</td>
-        <td><small>${escapeHtml((g.selectedInfo || []).join(', ') || '未選択')}</small></td>
+        <td><small>${escapeHtml(selectedLabelsStr)}</small></td>
         <td><small>${escapeHtml(g.decisionLabel || '未決定')}</small></td>
         <td class="rationale-cell">
           <div class="rationale-cell-preview">${rationalePreview}</div>
@@ -364,8 +368,8 @@
       if (viewBtn) {
         viewBtn.addEventListener('click', () => {
           showModal(
-            `${g.groupName} — Scene ${g.currentScene} アセスメント記述全文`,
-            `<strong>【選択した判断】</strong>\n${escapeHtml(g.decisionLabel)}\n\n<strong>【記述したアセスメント（${g.rationaleText.length}文字）】</strong>\n${escapeHtml(g.rationaleText)}\n\n<strong>【ルーブリック到達水準】</strong>\n${escapeHtml(g.rationaleLevel)}`,
+            `${g.groupName} — Scene ${g.currentScene} 回答・記述全文`,
+            `<strong>【選択した情報カード】</strong>\n${escapeHtml(selectedLabelsStr)}\n\n<strong>【選択した判断】</strong>\n${escapeHtml(g.decisionLabel)}\n\n<strong>【自由記述全文（${g.rationaleText.length}文字）】</strong>\n${escapeHtml(g.rationaleText)}\n\n<strong>【形成的ルーブリック参考表示】</strong>\n${escapeHtml(g.rationaleLevel)}`,
             null,
             true
           );
@@ -376,7 +380,7 @@
     });
   }
 
-  // 3. 回答・評価集計（Charts + 自由記述一覧）の描画
+  // 3. Scene別回答比較・集計タブの描画
   function renderSummaryCharts(sceneId) {
     const container = document.getElementById('summary-charts-content');
     container.innerHTML = '';
@@ -390,8 +394,8 @@
       ? `<div style="margin-top:0.4rem; font-size:0.85rem; color:#4a5568;"><strong>💬 発問例：</strong>${debrief.debriefQuestions.join(' / ')}</div>`
       : '';
     questionBanner.innerHTML = `
-      <div class="clinical-q-title">❓ Clinical Question：${debrief.clinicalQuestion || '―'}</div>
-      <div class="debrief-focus-box">🎯 <strong>指導の着眼点：</strong>${debrief.debriefFocus || '―'}</div>
+      <div class="clinical-q-title">❓ Clinical Question：${escapeHtml(debrief.clinicalQuestion || '―')}</div>
+      <div class="debrief-focus-box">🎯 <strong>指導の着眼点：</strong>${escapeHtml(debrief.debriefFocus || '―')}</div>
       ${qListHtml}
     `;
     container.appendChild(questionBanner);
@@ -400,41 +404,61 @@
       const emptyMsg = document.createElement('p');
       emptyMsg.className = 'text-muted';
       emptyMsg.style.cssText = 'padding: 2rem 0; text-align:center;';
-      emptyMsg.textContent = `Scene ${sceneId} の回答データはまだありません`;
+      emptyMsg.textContent = `${sceneNames[sceneId]} の回答データはまだありません`;
       container.appendChild(emptyMsg);
       return;
     }
 
     const chartsDiv = document.createElement('div');
+    const isMultiSelect = debrief.questionType === 'multi_select';
+    const isFreeTextOnly = debrief.questionType === 'free_text_only';
+
+    let decisionSectionHtml = '';
+    if (isMultiSelect) {
+      decisionSectionHtml = `
+        <div class="chart-section">
+          <h4>☑️ 胸腔ドレーン複数選択問題（A〜F）の選択率分布（完全正答 A・B・D・F 一致：${debrief.exactMultiSelectMatches} / ${debrief.totalSubmissions} グループ）</h4>
+          <div class="chart-bars" id="summary-decision-bars"></div>
+        </div>
+      `;
+    } else if (!isFreeTextOnly) {
+      decisionSectionHtml = `
+        <div class="chart-section">
+          <h4>⚖️ 看護判断（A〜D）の分布</h4>
+          <div class="chart-bars" id="summary-decision-bars"></div>
+        </div>
+      `;
+    }
+
+    let entriesHeading = '📝 グループ別 回答・自由記述の比較（🌟でDebrief画面の上部にピックアップ表示）';
+    if (sceneId === 1) entriesHeading = '📝 SCENE 1 (BEFORE)：各グループが選択した患者情報と術前予測アセスメントの比較';
+    if (sceneId === 2) entriesHeading = '📝 SCENE 2 (AFTER)：各グループの術直後呼吸状態アセスメント文章の比較（術前予測との対比付き）';
+    if (sceneId === 3) entriesHeading = '📝 SCENE 3 (AFTER 2)：各グループの複数選択（A〜F）回答一覧';
+    if (sceneId === 4) entriesHeading = '📝 SCENE 4 (NEXT)：各グループの看護判断と患者（Aさん）への声かけの比較';
+
     chartsDiv.innerHTML = `
       <div class="chart-section">
-        <h4>📋 情報選択率（Information Selection Distribution）</h4>
+        <h4>📋 患者情報・観察カードの選択率（Information Selection Distribution）</h4>
         <div class="chart-bars" id="summary-info-bars"></div>
       </div>
-      <div class="chart-section">
-        <h4>⚖️ 最終判断の分布（Decision Distribution）</h4>
-        <div class="chart-bars" id="summary-decision-bars"></div>
-      </div>
-      <div class="chart-section">
-        <h4>🏥 患者アウトカムの分布（Patient Outcome Distribution）</h4>
-        <div class="chart-bars" id="summary-outcome-bars"></div>
-      </div>
+      ${decisionSectionHtml}
       <div class="chart-section" style="margin-top: 2rem;">
-        <h4>📝 各グループのアセスメント記述一覧（🌟をクリックするとDebrief画面で強調ピックアップ表示されます）</h4>
+        <h4>${entriesHeading}</h4>
         <div id="summary-rationales-list" class="rationales-grid"></div>
       </div>
     `;
     container.appendChild(chartsDiv);
 
-    renderBarChart(container.querySelector('#summary-info-bars'), debrief.infoCounts, '#4A90D9');
-    renderBarChart(container.querySelector('#summary-decision-bars'), debrief.decisionCounts, '#2C8C7C');
-
-    const outcomeData = Object.keys(debrief.outcomeCounts || {}).map(k => ({
-      label: k,
-      count: debrief.outcomeCounts[k],
-      percentage: debrief.totalSubmissions > 0 ? Math.round((debrief.outcomeCounts[k] / debrief.totalSubmissions) * 100) : 0
-    }));
-    renderBarChart(container.querySelector('#summary-outcome-bars'), outcomeData, '#e67e22');
+    renderBarChart(container.querySelector('#summary-info-bars'), debrief.infoCounts, '#4A90D9', false, false);
+    if (!isFreeTextOnly) {
+      renderBarChart(
+        container.querySelector('#summary-decision-bars'),
+        debrief.decisionCounts,
+        '#2C8C7C',
+        false,
+        isMultiSelect
+      );
+    }
 
     renderRationaleCards(container.querySelector('#summary-rationales-list'), debrief.rationaleEntries || [], sceneId, false);
   }
@@ -457,7 +481,7 @@
       <div>
         <h2>${sceneNames[sceneId]}</h2>
         <div class="debrief-clinical-question">
-          <span class="q-badge">Clinical Question</span> ${debrief.clinicalQuestion || ''}
+          <span class="q-badge">Clinical Question</span> ${escapeHtml(debrief.clinicalQuestion || '')}
         </div>
       </div>
       <div class="debrief-total-badge">回答グループ数：${debrief.totalSubmissions || 0} 組</div>
@@ -471,14 +495,14 @@
         <div style="margin-top: 1rem; border-top: 1px dashed #fde047; padding-top: 0.75rem;">
           <div style="font-size: 1rem; font-weight: bold; color: #b45309; margin-bottom: 0.35rem;">💬 全体討議での発問例：</div>
           <ul style="margin: 0; padding-left: 1.25rem; color: #78350f; font-size: 1.05rem; line-height: 1.6;">
-            ${debrief.debriefQuestions.map(q => `<li>${q}</li>`).join('')}
+            ${debrief.debriefQuestions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}
           </ul>
         </div>
       `
       : '';
     focusCard.innerHTML = `
       <div class="focus-title">🎯 指導の着眼点</div>
-      <div class="focus-body">${debrief.debriefFocus || ''}</div>
+      <div class="focus-body">${escapeHtml(debrief.debriefFocus || '')}</div>
       ${debriefQuestionsHtml}
     `;
     container.appendChild(focusCard);
@@ -486,48 +510,62 @@
     if (debrief.totalSubmissions === 0) {
       const emptyDiv = document.createElement('div');
       emptyDiv.className = 'debrief-empty';
-      emptyDiv.innerHTML = `Scene ${sceneId} の回答送信データはまだありません。<br>学生グループが判断とアセスメント記述を送信するとここに全体集計が表示されます。`;
+      emptyDiv.innerHTML = `${sceneNames[sceneId]} の回答送信データはまだありません。<br>学生グループが回答を送信するとここに全体集計・比較が表示されます。`;
       container.appendChild(emptyDiv);
       return;
     }
 
+    const isMultiSelect = debrief.questionType === 'multi_select';
+    const isFreeTextOnly = debrief.questionType === 'free_text_only';
+
     const grid = document.createElement('div');
     grid.className = 'debrief-grid';
+
+    let rightChartCardHtml = '';
+    if (isMultiSelect) {
+      rightChartCardHtml = `
+        <div class="debrief-card full-width">
+          <h3>2. 胸腔ドレーン複数選択問題（A〜F）の選択分布（完全正答 A・B・D・F 一致：${debrief.exactMultiSelectMatches} / ${debrief.totalSubmissions} 組）</h3>
+          <div class="debrief-bars" id="debrief-decision-bars"></div>
+        </div>
+      `;
+    } else if (!isFreeTextOnly) {
+      rightChartCardHtml = `
+        <div class="debrief-card">
+          <h3>2. どう判断したか？（看護判断の分布）</h3>
+          <div class="debrief-bars" id="debrief-decision-bars"></div>
+        </div>
+      `;
+    }
+
+    let shareTitle = '📝 各グループの回答・アセスメント記述の比較（匿名表示）';
+    if (sceneId === 1) shareTitle = '2. 📝 各グループが選択した患者情報と術前予測アセスメントの比較';
+    if (sceneId === 2) shareTitle = '3. 📝 各グループの術直後呼吸状態アセスメント文章の比較';
+    if (sceneId === 3) shareTitle = '3. 📝 各グループの複数選択結果一覧';
+    if (sceneId === 4) shareTitle = '3. 📝 各グループの看護判断とAさんへの声かけの比較';
+
     grid.innerHTML = `
-      <div class="debrief-card">
-        <h3>1. どの情報を確認したか？（情報選択率）</h3>
+      <div class="debrief-card ${isFreeTextOnly || isMultiSelect ? 'full-width' : ''}">
+        <h3>1. どの患者情報・観察項目を選択したか？（選択率）</h3>
         <div class="debrief-bars" id="debrief-info-bars"></div>
       </div>
 
-      <div class="debrief-card">
-        <h3>2. どう判断したか？（看護判断の分布）</h3>
-        <div class="debrief-bars" id="debrief-decision-bars"></div>
-      </div>
+      ${rightChartCardHtml}
 
       <div class="debrief-card full-width">
-        <h3>3. 📝 学生グループのアセスメント記述ピックアップ・共有（匿名表示）</h3>
+        <h3>${shareTitle}</h3>
         <p class="text-muted" style="margin-top:-0.5rem; margin-bottom:1rem; font-size:0.95rem;">
-          設問：${escapeHtml(debrief.rationalePrompt || '')}
+          課題：${escapeHtml(debrief.rationalePrompt || debrief.clinicalQuestion || '')}
         </p>
         <div id="debrief-rationales-list" class="rationales-grid debrief-rationales-grid"></div>
-      </div>
-
-      <div class="debrief-card full-width">
-        <h3>4. 患者の状態変化（Patient Outcome）</h3>
-        <div class="debrief-bars" id="debrief-outcome-bars"></div>
       </div>
     `;
     container.appendChild(grid);
 
-    renderBarChart(container.querySelector('#debrief-info-bars'), debrief.infoCounts, '#4A90D9', true);
-    renderBarChart(container.querySelector('#debrief-decision-bars'), debrief.decisionCounts, '#2C8C7C', true);
-
-    const outcomeData = Object.keys(debrief.outcomeCounts || {}).map(k => ({
-      label: k,
-      count: debrief.outcomeCounts[k],
-      percentage: debrief.totalSubmissions > 0 ? Math.round((debrief.outcomeCounts[k] / debrief.totalSubmissions) * 100) : 0
-    }));
-    renderBarChart(container.querySelector('#debrief-outcome-bars'), outcomeData, '#e67e22', true);
+    renderBarChart(container.querySelector('#debrief-info-bars'), debrief.infoCounts, '#4A90D9', true, false);
+    if (!isFreeTextOnly) {
+      renderBarChart(container.querySelector('#debrief-decision-bars'), debrief.decisionCounts, '#2C8C7C', true, isMultiSelect);
+    }
 
     renderRationaleCards(container.querySelector('#debrief-rationales-list'), debrief.rationaleEntries || [], sceneId, true);
   }
@@ -537,7 +575,7 @@
     container.innerHTML = '';
 
     if (!entries || entries.length === 0) {
-      container.innerHTML = '<div class="text-muted">まだアセスメント記述の提出はありません</div>';
+      container.innerHTML = '<div class="text-muted">まだ回答の提出はありません</div>';
       return;
     }
 
@@ -549,7 +587,21 @@
       card.className = `rationale-share-card ${entry.highlighted ? 'highlighted' : ''}`;
 
       const displayTitle = isAnonymousProjector ? entry.anonymousLabel : `${entry.groupName}（投影時：${entry.anonymousLabel}）`;
+      const selectedCardsHtml = (entry.selectedInfoLabels && entry.selectedInfoLabels.length > 0)
+        ? `<div class="share-selected-info-box"><strong>選択した情報：</strong>${escapeHtml(entry.selectedInfoLabels.join('、'))}</div>`
+        : '';
+
+      const beforeCompHtml = (sceneId === 2 && entry.beforePredictionText)
+        ? `<div class="share-before-ref-box"><small><strong>【参考：SCENE 1での術前予測】</strong> ${escapeHtml(entry.beforePredictionText)}</small></div>`
+        : '';
+
       const matchedTags = (entry.matchedElements || []).map(el => `<span class="matched-element-tag">✓ ${escapeHtml(el)}</span>`).join('');
+
+      const bodyText = entry.rationaleText
+        ? `<div class="rationale-share-body">${escapeHtml(entry.rationaleText)}</div>`
+        : (sceneId === 3
+          ? `<div class="rationale-share-body"><strong>選択した項目：${escapeHtml((entry.selectedDecisions || []).join(' ・ ') || 'なし')}</strong>（正答：A・B・D・F）</div>`
+          : '<div class="rationale-share-body text-muted">（自由記述なし）</div>');
 
       card.innerHTML = `
         <div class="rationale-share-header">
@@ -567,7 +619,9 @@
             </button>
           </div>
         </div>
-        <div class="rationale-share-body">${escapeHtml(entry.rationaleText)}</div>
+        ${selectedCardsHtml}
+        ${bodyText}
+        ${beforeCompHtml}
         ${matchedTags ? `<div class="rationale-share-tags">${matchedTags}</div>` : ''}
       `;
 
@@ -585,7 +639,7 @@
     });
   }
 
-  function renderBarChart(container, dataList, color, isLarge = false) {
+  function renderBarChart(container, dataList, color, isLarge = false, showCorrectBadge = false) {
     if (!container) return;
     container.innerHTML = '';
 
@@ -593,10 +647,22 @@
       const row = document.createElement('div');
       row.className = `bar-row ${isLarge ? 'bar-large' : ''}`;
 
+      let prefixBadge = '';
+      let barColor = color;
+      if (showCorrectBadge) {
+        if (item.isCorrect) {
+          prefixBadge = '<span class="opt-correct-tag">正答</span> ';
+          barColor = '#16a34a';
+        } else {
+          prefixBadge = '<span class="opt-wrong-tag">誤答</span> ';
+          barColor = '#dc2626';
+        }
+      }
+
       row.innerHTML = `
-        <div class="bar-label" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</div>
+        <div class="bar-label" title="${escapeHtml(item.label)}">${prefixBadge}${escapeHtml(item.label)}</div>
         <div class="bar-track">
-          <div class="bar-fill" style="width: ${Math.max(item.percentage, 2)}%; background-color: ${color};"></div>
+          <div class="bar-fill" style="width: ${Math.max(item.percentage, 2)}%; background-color: ${barColor};"></div>
         </div>
         <div class="bar-val">${item.percentage}% (${item.count}組)</div>
       `;

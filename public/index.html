@@ -10,8 +10,11 @@
   <!-- 1. 登録画面 -->
   <div id="screen-register" class="screen active">
     <div class="container">
+      <div class="fictional-data-banner">
+        ℹ️ 本シミュレーションの患者情報は、看護学教育のために作成された架空のデータです。
+      </div>
       <h1 class="app-title">Clinical Reasoning Simulation</h1>
-      <h2 class="app-subtitle">第4回 肺がん患者の看護（胸腔鏡下左上葉切除術・周術期） — 臨床推論・アセスメント演習</h2>
+      <h2 class="app-subtitle">第4回 肺がん患者の看護（胸腔鏡下左上葉切除術・周術期）</h2>
       
       <div class="register-form">
         <div class="form-group">
@@ -35,20 +38,21 @@
       <header class="game-header">
         <div class="scene-indicator">
           <span id="scene-title">SCENE 1 — BEFORE</span>
-          <span id="scene-subtitle" class="scene-subtitle">① 術前リスクを予測する</span>
+          <span id="scene-subtitle" class="scene-subtitle">術前呼吸機能のアセスメント</span>
         </div>
         <div class="group-info">
+          <span class="fictional-badge">教育用架空データ</span>
           <span class="group-badge" id="group-name-display">グループ名</span>
         </div>
       </header>
 
-      <!-- 4 Scene プログレスバー -->
+      <!-- 4 Scene プログレスバー (BEFORE -> AFTER -> AFTER 2 -> NEXT) -->
       <div class="scene-progress">
         <div class="progress-step" data-scene="1"><span>BEFORE</span></div>
         <div class="progress-connector"></div>
-        <div class="progress-step" data-scene="2"><span>DURING</span></div>
+        <div class="progress-step" data-scene="2"><span>AFTER</span></div>
         <div class="progress-connector"></div>
-        <div class="progress-step" data-scene="3"><span>AFTER</span></div>
+        <div class="progress-step" data-scene="3"><span>AFTER 2</span></div>
         <div class="progress-connector"></div>
         <div class="progress-step" data-scene="4"><span>NEXT</span></div>
       </div>
@@ -66,8 +70,8 @@
       <!-- 初期提示の基本情報 ＆ バイタルサイン（Budget対象外） -->
       <div id="vitals-display-card" class="vitals-card">
         <div class="vitals-card-header">
-          <span class="badge-base">現在の基本情報・経過比較</span>
-          <span class="vitals-note">※事前確認項目（Budget消費なし）</span>
+          <span id="vitals-card-badge" class="badge-base">最初に提示する情報</span>
+          <span class="vitals-note">※事前提示項目（Budget消費なし）</span>
         </div>
         <div id="initial-summary-text" class="initial-summary-box" style="display:none;"></div>
         <div id="vitals-list" class="vitals-grid"></div>
@@ -76,66 +80,64 @@
       <!-- 指示文 -->
       <div id="instruction-box" class="instruction-box"></div>
 
-      <!-- 回復を促進する看護の関連表 (Scene 4) -->
-      <div id="life-activities" class="life-activities" style="display:none;">
-        <h3 id="life-activities-title">回復を促進する看護の関連整理（根拠と効果の評価）</h3>
-        <div id="activities-list" class="activities-list"></div>
-      </div>
-
       <!-- Information Budget 表示 -->
       <div id="budget-display" class="budget-display">
-        <div class="budget-label">INFORMATION BUDGET</div>
+        <div id="budget-label-title" class="budget-label">INFORMATION BUDGET</div>
         <div class="budget-dots-wrap">
           <div id="budget-dots" class="budget-dots"></div>
-          <span id="budget-text" class="budget-text">残り 3 つの情報を確認できます</span>
+          <span id="budget-text" class="budget-text">情報を選択できます</span>
         </div>
       </div>
 
       <!-- 情報選択肢カード一覧 -->
       <div id="info-selection" class="info-selection">
-        <h3>追加で確認・整理したい情報を選択してください</h3>
+        <h3 id="info-selection-heading">確認・選択したい情報カードをクリックしてください</h3>
         <div id="info-items" class="info-items"></div>
       </div>
 
-      <!-- 取得済み情報リスト -->
+      <!-- 取得済み情報と意味づけ解説の蓄積リスト -->
       <div id="collected-info-section" class="collected-info" style="display:none;">
-        <h3>取得した情報</h3>
+        <h3 id="collected-info-heading">📌 選択した情報と意味づけの蓄積（統合アセスメント用）</h3>
         <div id="collected-info-list" class="collected-list"></div>
       </div>
 
-      <!-- 判断セクションへ進むボタン -->
+      <!-- 判断・記述セクションへ進むボタン -->
       <div id="proceed-btn-wrap" class="proceed-wrap">
-        <button id="btn-proceed-decision" class="btn btn-secondary btn-lg">看護判断・アセスメント記述へ進む</button>
+        <button id="btn-proceed-decision" class="btn btn-secondary btn-lg">アセスメント記述・看護判断へ進む</button>
       </div>
 
-      <!-- 看護判断 ＋ 自由記述セクション（2ステップ統合型） -->
+      <!-- 看護判断 ＋ 自由記述セクション -->
       <div id="decision-section" class="decision-section" style="display:none;">
-        <div class="step-label-badge">STEP 1：看護判断・病態解釈の選択（A〜D）</div>
-        <h3 id="decision-prompt" class="decision-prompt">現在得られている情報から、どう判断しますか？</h3>
-        <div id="decision-options" class="decision-options"></div>
+        <!-- 選択肢ブロック（Scene 2, 3, 4 で表示、Scene 1 では非表示） -->
+        <div id="decision-choice-block">
+          <div id="decision-step-badge" class="step-label-badge">看護判断の選択</div>
+          <h3 id="decision-prompt" class="decision-prompt">現在得られている情報から、どう判断しますか？</h3>
+          <div id="decision-options" class="decision-options"></div>
+        </div>
 
-        <div class="rationale-input-card">
-          <div class="step-label-badge step-badge-rationale">STEP 2：アセスメント理由・根拠の自由記述（必須）</div>
+        <!-- 自由記述ブロック（Scene 1, 2, 4 で必須表示、Scene 3 では任意メモとしてコンパクト表示） -->
+        <div id="rationale-input-card" class="rationale-input-card">
+          <div id="rationale-step-badge" class="step-label-badge step-badge-rationale">自由記述アセスメント</div>
           <label for="student-rationale" id="rationale-prompt" class="rationale-prompt-label">
-            選択した判断の根拠について、患者のどの情報に注目し、どのような病態・リスクをアセスメントしたか記述してください。
+            選択した情報を関連づけ、アセスメントを記述してください。
           </label>
-          <div class="rationale-rubric-guide">
-            💡 <strong>到達目標のヒント：</strong>単なる病態名の列挙（知識の再生）にとどまらず、<strong>「観察した根拠」➔「病態生理・複数の要因のつながり」➔「今後のリスクと必要な対応」</strong>を自分の言葉で説明してみましょう。
+          <div id="rationale-length-guide" class="rationale-rubric-guide">
+            記述の目安：100〜200字
           </div>
           <textarea
             id="student-rationale"
             class="rationale-textarea"
             rows="5"
             maxlength="400"
-            placeholder="ここにグループで話し合ったアセスメント・判断理由を記述してください（30〜400文字）..."
+            placeholder="ここにグループで考えたアセスメントや患者への声かけを記述してください..."
           ></textarea>
           <div class="rationale-counter-row">
-            <span id="rationale-status-hint" class="rationale-status-hint">あと 30 文字以上で送信可能になります</span>
+            <span id="rationale-status-hint" class="rationale-status-hint">文字数を入力してください</span>
             <span id="rationale-char-count" class="rationale-char-count">0 / 400 文字</span>
           </div>
         </div>
 
-        <button id="btn-submit-decision" class="btn btn-primary btn-lg btn-block" disabled>この判断とアセスメントを送信する</button>
+        <button id="btn-submit-decision" class="btn btn-primary btn-lg btn-block" disabled>回答を確定して送信する</button>
       </div>
     </div>
   </div>
@@ -143,19 +145,19 @@
   <!-- 確認ダイアログモーダル -->
   <div id="confirm-modal" class="modal" style="display:none;">
     <div class="modal-content">
-      <h3 id="confirm-title">この判断とアセスメント記述でよいですか？</h3>
-      <div class="confirm-section-block">
+      <h3 id="confirm-title">この内容で回答を確定してよいですか？</h3>
+      <div id="confirm-decision-block" class="confirm-section-block">
         <div class="confirm-section-label">【選択した判断】</div>
         <p id="confirm-detail" class="confirm-detail-text"></p>
       </div>
-      <div class="confirm-section-block">
-        <div class="confirm-section-label">【記述したアセスメント・根拠】</div>
+      <div id="confirm-rationale-block" class="confirm-section-block">
+        <div class="confirm-section-label">【自由記述の内容】</div>
         <div id="confirm-rationale-preview" class="confirm-rationale-box"></div>
       </div>
-      <p class="confirm-subtext">※送信後は教員が結果を公開するまで変更できません。</p>
+      <p class="confirm-subtext">※回答確定後は原則として編集できず、教員が結果を公開するまで待機画面となります。</p>
       <div class="modal-buttons">
         <button id="btn-confirm-no" class="btn btn-secondary">戻る</button>
-        <button id="btn-confirm-yes" class="btn btn-primary">はい、送信する</button>
+        <button id="btn-confirm-yes" class="btn btn-primary">はい、確定して送信する</button>
       </div>
     </div>
   </div>
@@ -165,8 +167,8 @@
     <div class="container center-content">
       <div class="wait-card">
         <div class="wait-icon">⏳</div>
-        <h2>回答とアセスメントを送信しました</h2>
-        <p class="wait-lead">グループの判断と自由記述を受け付けました。</p>
+        <h2>回答を送信しました</h2>
+        <p class="wait-lead">グループの回答を記録しました。</p>
         <div class="wait-pulse"></div>
         <p class="wait-instruction">他のグループも検討しています。<br><strong>教員が結果を公開するまで、この画面でお待ちください。</strong></p>
       </div>
@@ -181,44 +183,85 @@
         <h2 id="result-scene-title">SCENE 1 — 結果公開</h2>
       </div>
 
-      <!-- あなたたちの判断・アセスメント記述・情報収集 -->
+      <!-- 1. 自分たちが選んだ情報・判断・自由記述 -->
       <div class="result-summary-card">
-        <div class="result-block">
-          <h4>YOUR ACTION（あなたたちの判断）</h4>
+        <div id="result-action-block" class="result-block">
+          <h4>YOUR DECISION（自分たちの判断）</h4>
           <div id="result-user-action" class="result-action-text"></div>
         </div>
 
-        <div class="result-block">
+        <div id="result-rationale-block" class="result-block">
           <div class="result-rationale-header">
-            <h4>YOUR RATIONALE（あなたたちが記述したアセスメント・根拠）</h4>
-            <span id="result-rationale-level" class="rationale-level-badge">評価中</span>
+            <h4>YOUR FREE-TEXT ASSESSMENT（自分たちの自由記述）</h4>
+            <span id="result-rationale-level" class="rationale-level-badge">評価済</span>
           </div>
           <div id="result-user-rationale" class="result-rationale-text"></div>
         </div>
 
         <div class="result-block">
-          <h4>YOUR ASSESSMENT（情報収集状況）</h4>
+          <h4>YOUR SELECTED INFORMATION（自分たちが選んだ情報）</h4>
           <div id="result-checked-info" class="result-info-grid"></div>
         </div>
       </div>
 
-      <!-- 患者の反応（Student Branch ノベル形式） -->
+      <!-- 2. BEFOREとAFTERの比較パネル（術前の予測 vs 術直後の実際の状態） -->
+      <div id="result-before-after-card" class="comparison-card" style="display:none;">
+        <h4>🔄 BEFORE × AFTER 比較（術前の予測 と 術直後の実際の状態）</h4>
+        <div class="comparison-grid">
+          <div class="comparison-col">
+            <div class="comparison-col-title">① BEFORE：あなたたちの術前呼吸状態予測</div>
+            <div id="comp-before-cards" class="comp-subtext"></div>
+            <div id="comp-before-text" class="comp-box"></div>
+          </div>
+          <div class="comparison-col">
+            <div class="comparison-col-title">② AFTER：術直後（帰室30分）の実際の状態とアセスメント</div>
+            <div id="comp-after-vitals" class="comp-subtext"></div>
+            <div id="comp-after-text" class="comp-box"></div>
+          </div>
+        </div>
+        <div id="comp-point-text" class="comparison-point-box"></div>
+      </div>
+
+      <!-- 3. Scene 3（複数選択問題）の選択肢別採点・解説一覧 -->
+      <div id="result-multi-select-card" class="result-summary-card" style="display:none;">
+        <h4>📋 各選択肢（A〜F）の選択・非選択の評価と解説</h4>
+        <div id="result-multi-select-list" class="multi-eval-list"></div>
+      </div>
+
+      <!-- 4. 判断が適切だった点 ＆ さらに考えるとよい視点 -->
+      <div class="feedback-points-card">
+        <div class="feedback-point-section good-points">
+          <h4>✅ 判断・記述が適切だった点</h4>
+          <ul id="result-strengths-list"></ul>
+        </div>
+        <div class="feedback-point-section further-points">
+          <h4>💡 さらに考えるとよい視点</h4>
+          <ul id="result-further-points-list"></ul>
+        </div>
+      </div>
+
+      <!-- 5. 患者の経過と形成的フィードバック -->
       <div class="patient-response-card">
         <div class="patient-response-header">
-          <h4>PATIENT RESPONSE & FEEDBACK（患者の経過とアセスメント評価）</h4>
+          <h4>CLINICAL FEEDBACK（経過と解説）</h4>
           <div id="patient-outcome-badge" class="outcome-badge">STABLE</div>
         </div>
-        
         <h3 id="student-branch-title" class="branch-title"></h3>
         <div id="student-branch-story" class="branch-story"></div>
       </div>
 
-      <!-- 振り返りの問い (REFLECTION QUESTION) -->
+      <!-- 6. 教員用の模範的な思考例 -->
+      <div id="result-model-thinking-card" class="model-thinking-card">
+        <h4>🎓 模範的な思考例（Model Clinical Reasoning）</h4>
+        <div id="result-model-thinking-text" class="model-thinking-body"></div>
+      </div>
+
+      <!-- 7. 振り返りの問い (REFLECTION QUESTION) -->
       <div class="reflection-card">
         <h4>💭 REFLECTION QUESTION</h4>
         <p id="reflection-question-text" class="reflection-text"></p>
         <div class="reflection-guide">
-          教員の解説を聞きながら、自分たちの情報収集・アセスメント記述・臨床判断のプロセスをグループでディスカッションしてください。
+          教員の解説を聞きながら、自分たちの選択した情報・意味づけ・アセスメント記述をグループで振り返ってください。
         </div>
       </div>
 
@@ -234,7 +277,7 @@
     <div class="container">
       <div class="canonical-header">
         <span class="canonical-badge">CLINICAL RESOLUTION</span>
-        <h2>授業上の正式なアセスメント・患者経過（Canonical Story）</h2>
+        <h2>統合アセスメントの模範例・共通解決（Canonical Story）</h2>
       </div>
 
       <div class="canonical-card">
@@ -244,7 +287,7 @@
 
       <div class="next-step-wait-card">
         <div class="next-icon">🫁</div>
-        <h3>全グループ共通の条件で次の段階へ進みます</h3>
+        <h3>全グループ共通の条件で次のSceneへ進みます</h3>
         <p>教員が次のSceneを開放するまで、このままお待ちください。</p>
       </div>
     </div>
