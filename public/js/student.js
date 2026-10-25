@@ -475,7 +475,7 @@
       if (currentSid === 1) infoHeading.textContent = '患者情報カード（全16項目から、術後の呼吸機能予測に重要な8項目を選択してください）';
       else if (currentSid === 2) infoHeading.textContent = '追加で観察・確認したい項目を選択してください（安全確認のため制限なく確認可能）';
       else if (currentSid === 3) infoHeading.textContent = '所見の解釈・基礎知識カード（ヒントとして1枚だけ確認することができます）';
-      else infoHeading.textContent = '初回離床を判断するために重要な情報を確認してください';
+      else infoHeading.textContent = '初回離床を判断するための確認項目（今回は全部確認することができます。何のために確認するのかをグループで明確にしてから中身を確認してみてください）';
     }
     const displayInfoItems = getDisplayInfoItems(sceneDef, currentSid);
     renderInfoItems(displayInfoItems, sceneState.selectedInfo, effectiveRemaining);
