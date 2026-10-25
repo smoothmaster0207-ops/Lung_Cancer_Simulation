@@ -50,9 +50,14 @@ else
   echo "⚠️ 公開URLの取得に時間がかかりました。ローカルモードで起動します。"
 fi
 
-# Nodeサーバー起動
-node server.js &
+# Nodeサーバー起動（server.js再起動時もCloudflareトンネルURLを維持）
+(
+  while true; do
+    node server.js
+    sleep 1
+  done
+) &
 NODE_PID=$!
 
-trap "kill $TUNNEL_PID $NODE_PID 2>/dev/null; rm -f $LOG_FILE; echo 'サーバーを停止しました'; exit" INT TERM EXIT
-wait $NODE_PID
+trap "kill $TUNNEL_PID $NODE_PID 2>/dev/null; pkill -P $NODE_PID 2>/dev/null; rm -f $LOG_FILE; echo 'サーバーを停止しました'; exit" INT TERM EXIT
+wait $TUNNEL_PID

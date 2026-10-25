@@ -279,6 +279,10 @@
           );
         });
         btnGroup.appendChild(btnResolve);
+        const btnReopen = createButton('🔄 このSceneを再開放', 'btn-secondary btn-sm', () => {
+          socket.emit('admin-open-scene', { sceneId: i });
+        });
+        btnGroup.appendChild(btnReopen);
       } else if (status === 'RESOLVED') {
         if (i < 4) {
           const btnNext = createButton(`🚀 OPEN NEXT SCENE（${sceneNames[i + 1]} を開放）`, 'btn-primary', () => {
@@ -295,6 +299,10 @@
           spanDone.textContent = '🎉 全シミュレーション完了';
           btnGroup.appendChild(spanDone);
         }
+        const btnReopen = createButton('🔄 このSceneを再開放', 'btn-secondary btn-sm', () => {
+          socket.emit('admin-open-scene', { sceneId: i });
+        });
+        btnGroup.appendChild(btnReopen);
       }
 
       container.appendChild(card);

@@ -1080,7 +1080,8 @@ io.on('connection', (socket) => {
     sceneStatuses[sid] = 'ACTIVE';
 
     groups.forEach(g => {
-      if (g.currentScene === sid && g.scenes[sid].phase !== 'submitted') {
+      g.currentScene = sid;
+      if (g.scenes[sid].phase !== 'submitted') {
         g.scenes[sid].phase = 'assessment';
       }
     });
@@ -1094,6 +1095,7 @@ io.on('connection', (socket) => {
     sceneStatuses[sid] = 'RESULTS_RELEASED';
 
     groups.forEach(g => {
+      g.currentScene = sid;
       const s = g.scenes[sid];
       if (s && !s.result) {
         const defaultDec = scenarioData.scenes[String(sid)]?.decisions?.[0]?.id || 'preop-assessment-complete';
@@ -1108,6 +1110,10 @@ io.on('connection', (socket) => {
   socket.on('admin-resolve-scene', (data) => {
     const sid = parseInt(data.sceneId);
     sceneStatuses[sid] = 'RESOLVED';
+
+    groups.forEach(g => {
+      g.currentScene = sid;
+    });
 
     broadcastGroupUpdates();
     console.log(`[Admin] Scene ${sid} RESOLVED (Canonical Story revealed)`);
