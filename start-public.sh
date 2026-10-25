@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# 心臓リハビリテーション Clinical Reasoning Simulation
+# 第4回「肺がん患者の看護」Clinical Reasoning Simulation
 # インターネット公開起動スクリプト (start-public.sh)
 # ==============================================================================
 
@@ -8,13 +8,13 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
 echo "===================================================="
-echo "心臓リハビリテーション Clinical Reasoning Simulation"
+echo "第4回「肺がん患者の看護」Clinical Reasoning Simulation"
 echo "インターネット公開サーバーを起動しています..."
 echo "===================================================="
 
 # 既存プロセスのクリーンアップ
 pkill -f "cloudflared tunnel --url http://localhost:3000" 2>/dev/null
-pkill -f "node server.js" 2>/dev/null
+pkill -f "node.*server.js" 2>/dev/null
 
 LOG_FILE="/tmp/cloudflared_$$.log"
 /opt/homebrew/bin/cloudflared tunnel --url http://localhost:3000 > "$LOG_FILE" 2>&1 &
@@ -38,9 +38,10 @@ if [ -n "$PUBLIC_URL" ]; then
   echo "****************************************************"
   echo "📱 学生用公開URL:  $PUBLIC_URL"
   echo "🔑 教員管理画面:    $PUBLIC_URL/admin"
-  echo "（教員パスワード: cardiac2024）"
+  echo "（教員パスワード: lung2024 または cardiac2024）"
   echo "****************************************************"
   echo "※学生のスマートフォン（4G/5G/Wi-Fi）から上記URLを開くだけで演習に参加できます。"
+  echo "※教員管理画面（$PUBLIC_URL/admin）もどのネットワークからでもアクセス可能です。"
   echo "※教員管理画面を開くと、上記URLのQRコードが自動表示されます。"
   echo "****************************************************"
   echo ""

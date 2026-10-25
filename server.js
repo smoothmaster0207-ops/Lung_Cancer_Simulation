@@ -29,12 +29,13 @@ function getLocalIpAddresses() {
   return addresses;
 }
 
-let publicUrl = process.env.PUBLIC_URL || null;
+let publicUrl = process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || null;
 
 let globalNetworkInfo = {
   ips: getLocalIpAddresses(),
   primaryIp: getLocalIpAddresses()[0] || 'localhost',
   studentUrl: publicUrl || `http://${getLocalIpAddresses()[0] || 'localhost'}:${PORT}/`,
+  adminUrl: publicUrl ? `${publicUrl.replace(/\/$/, '')}/admin` : `http://${getLocalIpAddresses()[0] || 'localhost'}:${PORT}/admin`,
   isPublic: !!publicUrl,
   qrCodeDataUrl: null
 };
@@ -42,19 +43,34 @@ let globalNetworkInfo = {
 async function initNetworkInfo() {
   const ips = getLocalIpAddresses();
   const primaryIp = ips[0] || 'localhost';
-  const studentUrl = publicUrl || `http://${primaryIp}:${PORT}/`;
+  const cleanPublic = publicUrl ? publicUrl.replace(/\/$/, '') : null;
+  const studentUrl = cleanPublic ? `${cleanPublic}/` : `http://${primaryIp}:${PORT}/`;
+  const adminUrl = cleanPublic ? `${cleanPublic}/admin` : `http://${primaryIp}:${PORT}/admin`;
   try {
     const qr = await QRCode.toDataURL(studentUrl, {
       margin: 2,
       width: 256,
       color: { dark: '#1a365d', light: '#ffffff' }
     });
-    globalNetworkInfo = { ips, primaryIp, studentUrl, isPublic: !!publicUrl, qrCodeDataUrl: qr };
+    globalNetworkInfo = { ips, primaryIp, studentUrl, adminUrl, isPublic: !!cleanPublic, qrCodeDataUrl: qr };
   } catch (e) {
     console.error('QR code generation error:', e);
   }
 }
 initNetworkInfo();
+
+// 外部トンネルやクラウド経由のアクセス時に自動で公開URLを検出・反映するミドルウェア
+app.use((req, res, next) => {
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  if (!publicUrl && host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1') && !/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) {
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    publicUrl = `${proto}://${host}`;
+    initNetworkInfo().then(() => {
+      io.emit('admin-summary-updated', buildAdminSummary());
+    });
+  }
+  next();
+});
 
 // シナリオデータのロード
 const scenarioPath = path.join(__dirname, 'data', 'scenario.json');
