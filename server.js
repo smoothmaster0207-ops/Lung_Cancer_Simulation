@@ -75,11 +75,21 @@ app.use((req, res, next) => {
 // シナリオデータのロード
 const scenarioPath = path.join(__dirname, 'data', 'scenario.json');
 let scenarioData;
-try {
-  scenarioData = JSON.parse(fs.readFileSync(scenarioPath, 'utf-8'));
-} catch (err) {
-  console.error('Failed to load scenario.json:', err);
-  process.exit(1);
+function loadScenarioData() {
+  try {
+    scenarioData = JSON.parse(fs.readFileSync(scenarioPath, 'utf-8'));
+  } catch (err) {
+    console.error('Failed to load scenario.json:', err);
+    if (!scenarioData) process.exit(1);
+  }
+}
+loadScenarioData();
+if (require.main === module) {
+  fs.watchFile(scenarioPath, { interval: 1000 }, () => {
+    loadScenarioData();
+    broadcastGroupUpdates();
+    console.log('[Server] Reloaded data/scenario.json');
+  });
 }
 
 // サーバーインメモリ状態
