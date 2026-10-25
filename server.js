@@ -965,6 +965,9 @@ io.on('connection', (socket) => {
     if (sceneState.phase !== 'assessment') {
       return socket.emit('error-msg', { message: 'すでに回答を送信済みです' });
     }
+    const currentBudget = getSceneBudget(sid);
+    sceneState.budget = currentBudget;
+    sceneState.remainingBudget = Math.max(0, currentBudget - sceneState.selectedInfo.length);
     if (sceneState.remainingBudget <= 0) {
       return socket.emit('error-msg', { message: 'これ以上カードを選択できません' });
     }

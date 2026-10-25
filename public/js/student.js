@@ -465,18 +465,20 @@
     document.getElementById('instruction-box').innerHTML = escapeHtml(sceneDef.instruction).replace(/\n/g, '<br>');
 
     // Information Budget 表示（Scene 2の安全確保モード等に対応）
-    renderBudget(sceneDef, sceneState.budget, sceneState.remainingBudget, sceneState.selectedInfo.length);
+    const effectiveBudget = sceneDef.budget ?? sceneState.budget;
+    const effectiveRemaining = Math.max(0, effectiveBudget - sceneState.selectedInfo.length);
+    renderBudget(sceneDef, effectiveBudget, effectiveRemaining, sceneState.selectedInfo.length);
 
     // 情報選択肢カード一覧
     const infoHeading = document.getElementById('info-selection-heading');
     if (infoHeading) {
       if (currentSid === 1) infoHeading.textContent = '患者情報カード（全16項目から、術後の呼吸機能予測に重要な8項目を選択してください）';
       else if (currentSid === 2) infoHeading.textContent = '追加で観察・確認したい項目を選択してください（安全確認のため制限なく確認可能）';
-      else if (currentSid === 3) infoHeading.textContent = '所見の解釈・基礎知識カード（必要に応じてクリックして確認できます）';
+      else if (currentSid === 3) infoHeading.textContent = '所見の解釈・基礎知識カード（ヒントとして1枚だけ確認することができます）';
       else infoHeading.textContent = '初回離床を判断するために重要な情報を確認してください';
     }
     const displayInfoItems = getDisplayInfoItems(sceneDef, currentSid);
-    renderInfoItems(displayInfoItems, sceneState.selectedInfo, sceneState.remainingBudget);
+    renderInfoItems(displayInfoItems, sceneState.selectedInfo, effectiveRemaining);
 
     // 取得済み情報と意味づけ解説の蓄積リスト
     renderCollectedInfo(sceneDef.infoItems, sceneState.selectedInfo, currentSid);
