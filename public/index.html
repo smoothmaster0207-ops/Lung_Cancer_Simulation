@@ -13,12 +13,15 @@
       <div class="fictional-data-banner">
         ℹ️ 本シミュレーションの患者情報は、看護学教育のために作成された架空のデータです。
       </div>
+      <div id="self-study-register-banner" class="fictional-data-banner" style="display:none; background:#ebf8ff; border-color:#4299e1; color:#2b6cb0; font-weight:600;">
+        📚 現在「個人復習（自習）モード」で開放中です — 1人で最後まで進めて何度でも自由に再挑戦できます。
+      </div>
       <h1 class="app-title">Clinical Reasoning Simulation</h1>
       <h2 class="app-subtitle">第4回 肺がん患者の看護（胸腔鏡下左上葉切除術・周術期）</h2>
       
       <div class="register-form">
         <div class="form-group">
-          <label for="group-name">グループ名 または Group ID</label>
+          <label for="group-name" id="group-name-label">グループ名 または Group ID</label>
           <input type="text" id="group-name" placeholder="例：グループ1" maxlength="20" autofocus>
         </div>
         <button id="btn-register" class="btn btn-primary btn-block">シミュレーション開始</button>
@@ -42,7 +45,9 @@
         </div>
         <div class="group-info">
           <span class="fictional-badge">教育用架空データ</span>
+          <span id="self-study-header-badge" class="fictional-badge" style="display:none; background:#2b6cb0; color:#fff;">📚 個人復習モード</span>
           <span class="group-badge" id="group-name-display">グループ名</span>
+          <button id="btn-self-study-restart-header" class="btn btn-secondary btn-sm" style="display:none; margin-left:6px; padding:4px 10px; font-size:0.78rem;">🔄 最初からやり直す</button>
         </div>
       </header>
 
@@ -265,9 +270,24 @@
         </div>
       </div>
 
-      <!-- 全体解説待ちメッセージ -->
-      <div class="await-resolve-bar">
+      <!-- 全体解説待ちメッセージ（授業モード時） -->
+      <div id="result-classroom-wait-bar" class="await-resolve-bar">
         <span>📢 現在、全体討議（Debriefing）中です。教員の指示があるまでお待ちください。</span>
+      </div>
+
+      <!-- 個人復習（自習）モード時の進行ボタン -->
+      <div id="result-self-study-actions" class="next-step-wait-card" style="display:none; margin-top:20px;">
+        <div class="next-icon">📚</div>
+        <h3>個人復習（自習）モード</h3>
+        <p>フィードバックと模範的な思考例を確認したら、自分のペースで統合模範例（Canonical Story）へ進んでください。</p>
+        <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+          <button id="btn-self-study-resolve" class="btn btn-primary btn-lg" style="min-width:300px;">
+            ✅ 統合アセスメントの模範例を確認する ➔
+          </button>
+          <button id="btn-self-study-restart-result" class="btn btn-secondary btn-sm">
+            🔄 SCENE 1 からもう一度やり直す
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -285,10 +305,25 @@
         <div id="canonical-body" class="canonical-text"></div>
       </div>
 
-      <div class="next-step-wait-card">
+      <div id="canonical-classroom-wait-card" class="next-step-wait-card">
         <div class="next-icon">🫁</div>
         <h3>全グループ共通の条件で次のSceneへ進みます</h3>
         <p>教員が次のSceneを開放するまで、このままお待ちください。</p>
+      </div>
+
+      <!-- 個人復習（自習）モード時の次Scene／再挑戦ボタン -->
+      <div id="canonical-self-study-actions" class="next-step-wait-card" style="display:none;">
+        <div class="next-icon">📚</div>
+        <h3 id="canonical-self-study-title">個人復習（自習）モード</h3>
+        <p id="canonical-self-study-desc">模範例を確認したら、自分のペースで次のSceneへ進むか、最初からもう一度挑戦できます。</p>
+        <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+          <button id="btn-self-study-next-scene" class="btn btn-primary btn-lg" style="min-width:300px;">
+            🚀 次のSceneへ進む ➔
+          </button>
+          <button id="btn-self-study-restart-canonical" class="btn btn-secondary" style="min-width:300px;">
+            🔄 最初からもう一度挑戦する（全Sceneをリセット）
+          </button>
+        </div>
       </div>
     </div>
   </div>

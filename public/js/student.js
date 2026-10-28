@@ -173,6 +173,33 @@
       showToast(data.message || 'エラーが発生しました');
     });
 
+    socket.on('mode-status', (data) => {
+      const isSelfStudy = !!(data && data.selfStudyMode);
+      const regBanner = document.getElementById('self-study-register-banner');
+      const nameLabel = document.getElementById('group-name-label');
+      const nameInput = document.getElementById('group-name');
+      if (regBanner) regBanner.style.display = isSelfStudy ? 'block' : 'none';
+      if (nameLabel) nameLabel.textContent = isSelfStudy ? '氏名・ニックネーム または グループ名（個人復習モード）' : 'グループ名 または Group ID';
+      if (nameInput) nameInput.placeholder = isSelfStudy ? '例：山田（個人復習）' : '例：グループ1';
+    });
+
+    socket.on('self-study-restarted', () => {
+      selectedDecisionId = null;
+      selectedMultiDecisions = [];
+      lastRenderedSceneId = null;
+      manualDecisionOpen = false;
+      Object.keys(draftRationales).forEach(k => delete draftRationales[k]);
+      Object.keys(draftMultiDecisions).forEach(k => delete draftMultiDecisions[k]);
+      Object.keys(shuffledItemIdsByScene).forEach(k => {
+        delete shuffledItemIdsByScene[k];
+        try { sessionStorage.removeItem(`lcs_shuffled_scene_${k}`); } catch (e) {}
+      });
+      const rationaleEl = document.getElementById('student-rationale');
+      if (rationaleEl) rationaleEl.value = '';
+      window.scrollTo(0, 0);
+      showToast('SCENE 1 から新しく開始しました');
+    });
+
     socket.on('admin-reset-done', () => {
       localStorage.removeItem('lcs_group_id');
       localStorage.removeItem('lcs_group_name');
@@ -353,6 +380,35 @@
         rationaleText
       });
     });
+
+    // 個人復習（自習）モード時の進行・リセットボタン
+    const btnSelfResolve = document.getElementById('btn-self-study-resolve');
+    if (btnSelfResolve) {
+      btnSelfResolve.addEventListener('click', () => {
+        if (!payload) return;
+        socket.emit('self-study-resolve-scene', { groupId, sceneId: payload.currentScene });
+      });
+    }
+
+    const btnSelfNext = document.getElementById('btn-self-study-next-scene');
+    if (btnSelfNext) {
+      btnSelfNext.addEventListener('click', () => {
+        if (!payload) return;
+        socket.emit('self-study-next-scene', { groupId });
+      });
+    }
+
+    const handleSelfRestart = () => {
+      if (!payload) return;
+      if (confirm('SCENE 1（最初）からもう一度やり直しますか？\n（現在の回答内容はリセットされ、新しく挑戦できます）')) {
+        socket.emit('self-study-restart', { groupId });
+      }
+    };
+
+    ['btn-self-study-restart-header', 'btn-self-study-restart-result', 'btn-self-study-restart-canonical'].forEach(btnId => {
+      const btn = document.getElementById(btnId);
+      if (btn) btn.addEventListener('click', handleSelfRestart);
+    });
   }
 
   // メイン描画分岐
@@ -374,6 +430,12 @@
     }
 
     document.getElementById('group-name-display').textContent = payload.groupName;
+
+    const isSelfStudy = !!payload.selfStudyMode;
+    const selfBadge = document.getElementById('self-study-header-badge');
+    const selfRestartHeaderBtn = document.getElementById('btn-self-study-restart-header');
+    if (selfBadge) selfBadge.style.display = isSelfStudy ? 'inline-block' : 'none';
+    if (selfRestartHeaderBtn) selfRestartHeaderBtn.style.display = isSelfStudy ? 'inline-block' : 'none';
 
     const displayPhase = payload.displayPhase;
 
@@ -848,6 +910,13 @@
         modelText.innerHTML = escapeHtml(result.modelThinking).replace(/\n/g, '<br>');
       }
     }
+
+    // 授業モード vs 個人復習（自習）モードのフッター切替
+    const isSelfStudy = !!payload.selfStudyMode;
+    const waitBar = document.getElementById('result-classroom-wait-bar');
+    const selfActions = document.getElementById('result-self-study-actions');
+    if (waitBar) waitBar.style.display = isSelfStudy ? 'none' : 'block';
+    if (selfActions) selfActions.style.display = isSelfStudy ? 'block' : 'none';
   }
 
   // STEP 6: 授業共通解決画面 (Canonical Story)
@@ -861,6 +930,31 @@
     if (canonical) {
       document.getElementById('canonical-title').textContent = canonical.title;
       document.getElementById('canonical-body').innerHTML = escapeHtml(canonical.resolution).replace(/\n/g, '<br>');
+    }
+
+    // 授業モード vs 個人復習（自習）モードの次ステップ表示切替
+    const isSelfStudy = !!payload.selfStudyMode;
+    const classWaitCard = document.getElementById('canonical-classroom-wait-card');
+    const selfCanonicalActions = document.getElementById('canonical-self-study-actions');
+    const btnSelfNext = document.getElementById('btn-self-study-next-scene');
+    const selfCanonicalTitle = document.getElementById('canonical-self-study-title');
+    const selfCanonicalDesc = document.getElementById('canonical-self-study-desc');
+
+    if (classWaitCard) classWaitCard.style.display = isSelfStudy ? 'none' : 'block';
+    if (selfCanonicalActions) {
+      selfCanonicalActions.style.display = isSelfStudy ? 'block' : 'none';
+      if (currentSid < 4) {
+        if (btnSelfNext) {
+          btnSelfNext.style.display = 'inline-block';
+          btnSelfNext.textContent = `🚀 次の SCENE ${currentSid + 1} へ進む ➔`;
+        }
+        if (selfCanonicalTitle) selfCanonicalTitle.textContent = `SCENE ${currentSid} 完了（個人復習モード）`;
+        if (selfCanonicalDesc) selfCanonicalDesc.textContent = '模範例を確認したら、自分のペースで次のSceneへ進んでください。';
+      } else {
+        if (btnSelfNext) btnSelfNext.style.display = 'none';
+        if (selfCanonicalTitle) selfCanonicalTitle.textContent = '🎉 全4 Sceneのシミュレーション完了！';
+        if (selfCanonicalDesc) selfCanonicalDesc.textContent = 'お疲れさまでした！下のボタンから何度でも最初から再挑戦して復習できます。';
+      }
     }
   }
 

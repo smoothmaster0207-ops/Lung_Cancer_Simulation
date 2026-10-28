@@ -151,6 +151,34 @@
         }
       );
     });
+
+    // 個人復習（自習）モード切替ボタン
+    const btnToggleSelfStudy = document.getElementById('btn-toggle-self-study');
+    if (btnToggleSelfStudy) {
+      btnToggleSelfStudy.addEventListener('click', () => {
+        const currentMode = !!(summaryData && summaryData.selfStudyMode);
+        const nextMode = !currentMode;
+        if (nextMode) {
+          showModal(
+            '📚 個人復習（自習）モードへの切り替え',
+            '「個人復習（自習）モード」をONにしますか？\n\n・学生は回答送信後、待機画面で止まらずに即座にResultと模範例を確認できるようになります。\n・学生自身が「次のSceneへ進む」「最初からもう一度挑戦する（リセット）」ボタンを使って、1人で何度でも最初から最後まで復習できるようになります。',
+            () => {
+              socket.emit('admin-toggle-self-study-mode', { enabled: true });
+              showToast('📚 個人復習（自習）モードをONにしました');
+            }
+          );
+        } else {
+          showModal(
+            '👨‍🏫 授業連動モードへの切り替え',
+            '「授業連動モード（教員の操作で一斉進行）」に戻しますか？',
+            () => {
+              socket.emit('admin-toggle-self-study-mode', { enabled: false });
+              showToast('👨‍🏫 授業連動モードに戻しました');
+            }
+          );
+        }
+      });
+    }
   }
 
   function handleLogin() {
@@ -185,11 +213,39 @@
   function renderAll() {
     if (!summaryData) return;
     renderNetworkInfo();
+    renderSelfStudyModeCard();
     renderSceneControlCards();
     renderGroupsTable();
     renderSummaryCharts(activeSummaryScene);
     if (document.getElementById('admin-debrief').classList.contains('active')) {
       renderDebriefView(activeDebriefScene);
+    }
+  }
+
+  function renderSelfStudyModeCard() {
+    const isSelfStudy = !!(summaryData && summaryData.selfStudyMode);
+    const card = document.getElementById('self-study-mode-card');
+    const badge = document.getElementById('self-study-status-badge');
+    const desc = document.getElementById('self-study-status-desc');
+    const btn = document.getElementById('btn-toggle-self-study');
+    if (!card || !badge || !desc || !btn) return;
+
+    if (isSelfStudy) {
+      card.style.borderLeftColor = '#38a169';
+      card.style.background = '#f0fff4';
+      badge.style.background = '#38a169';
+      badge.textContent = '📚 現在：個人復習（自習）モード ON（学生が各自のペースで何度でも進行・再挑戦可能）';
+      desc.textContent = '現在、学生は教員の操作を待たずに回答送信後すぐ結果と模範例を確認し、1人でSCENE 1〜4を最後まで進めたり、自分の端末で何度でも最初からリセットしてやり直すことができます。';
+      btn.className = 'btn btn-secondary';
+      btn.textContent = '👨‍🏫 授業連動モードに戻す';
+    } else {
+      card.style.borderLeftColor = '#2b6cb0';
+      card.style.background = '#ffffff';
+      badge.style.background = '#2b6cb0';
+      badge.textContent = '👨‍🏫 現在：授業連動モード（教員の操作で一斉進行）';
+      desc.textContent = '授業終了後に「📚 個人復習（自習）モード」をONにすると、学生は教員の操作を待たずに1人でSCENE 1〜4を最後まで進めることができ、自分の端末で何度でも最初からやり直して復習できるようになります。';
+      btn.className = 'btn btn-primary';
+      btn.textContent = '📚 個人復習（自習）モードをONにする';
     }
   }
 

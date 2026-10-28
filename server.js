@@ -100,6 +100,9 @@ let sceneStatuses = {
   4: 'LOCKED'
 };
 
+// 授業後・個人復習（自習）モードフラグ（教員管理画面でON/OFF切替可能）
+let selfStudyMode = false;
+
 const groups = new Map();
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -664,17 +667,28 @@ function buildClientPayload(groupState) {
   const globalSceneStatus = sceneStatuses[currentSceneId];
 
   let displayPhase = currentSceneState.phase;
-  if (globalSceneStatus === 'RESULTS_RELEASED') {
-    displayPhase = 'result';
-  } else if (globalSceneStatus === 'RESOLVED') {
-    displayPhase = 'resolved';
+  if (selfStudyMode) {
+    // 個人復習（自習）モード時は教員操作を待たず、送信後は即座にResult画面へ、さらに学生自身の操作でResolved・次Sceneへ進行可能
+    if (displayPhase === 'submitted') {
+      displayPhase = 'result';
+    }
+  } else {
+    if (globalSceneStatus === 'RESULTS_RELEASED') {
+      displayPhase = 'result';
+    } else if (globalSceneStatus === 'RESOLVED') {
+      displayPhase = 'resolved';
+    }
   }
 
   const sanitizedScenes = {};
   for (let i = 1; i <= 4; i++) {
     const s = groupState.scenes[i];
-    const isReleased = sceneStatuses[i] === 'RESULTS_RELEASED' || sceneStatuses[i] === 'RESOLVED';
-    const isResolved = sceneStatuses[i] === 'RESOLVED';
+    const isReleased = selfStudyMode
+      ? (s.phase === 'submitted' || s.phase === 'result' || s.phase === 'resolved')
+      : (sceneStatuses[i] === 'RESULTS_RELEASED' || sceneStatuses[i] === 'RESOLVED');
+    const isResolved = selfStudyMode
+      ? (s.phase === 'resolved')
+      : (sceneStatuses[i] === 'RESOLVED');
 
     sanitizedScenes[i] = {
       sceneId: s.sceneId,
@@ -713,6 +727,7 @@ function buildClientPayload(groupState) {
     groupName: groupState.groupName,
     currentScene: currentSceneId,
     displayPhase,
+    selfStudyMode,
     sceneStatus: globalSceneStatus,
     sceneStatuses: sceneStatuses,
     scenario: scenarioData,
@@ -727,6 +742,7 @@ function buildAdminSummary() {
 
   const summary = {
     networkInfo: globalNetworkInfo,
+    selfStudyMode,
     sceneStatuses,
     totalGroups: groupsList.length,
     groups: groupsList.map(g => {
@@ -916,10 +932,12 @@ function broadcastGroupUpdates() {
 // --- Socket.IO 通信 ---
 
 io.on('connection', (socket) => {
+  socket.emit('mode-status', { selfStudyMode });
+
   socket.on('register-group', (data) => {
     const groupName = typeof data === 'string' ? data : data?.groupName;
     if (!groupName || groupName.trim() === '') {
-      return socket.emit('error-msg', { message: 'グループ名を入力してください' });
+      return socket.emit('error-msg', { message: 'グループ名または氏名を入力してください' });
     }
     const groupId = uuidv4();
     const groupState = createGroupState(groupId, groupName.trim());
@@ -957,7 +975,7 @@ io.on('connection', (socket) => {
     const groupState = groups.get(groupId);
     const sid = parseInt(sceneId);
 
-    if (sceneStatuses[sid] !== 'ACTIVE') {
+    if (!selfStudyMode && sceneStatuses[sid] !== 'ACTIVE') {
       return socket.emit('error-msg', { message: 'このSceneは現在選択を受け付けていません' });
     }
 
@@ -989,7 +1007,7 @@ io.on('connection', (socket) => {
     const groupState = groups.get(groupId);
     const sid = parseInt(sceneId);
 
-    if (sceneStatuses[sid] !== 'ACTIVE') {
+    if (!selfStudyMode && sceneStatuses[sid] !== 'ACTIVE') {
       return socket.emit('error-msg', { message: 'このSceneは現在送信を受け付けていません' });
     }
 
@@ -1038,9 +1056,9 @@ io.on('connection', (socket) => {
     sceneState.selectedDecisions = finalSelectedDecisions;
     sceneState.rationaleText = cleanedRationale;
     sceneState.submittedAt = new Date().toISOString();
-    sceneState.phase = 'submitted';
+    sceneState.phase = selfStudyMode ? 'result' : 'submitted';
 
-    // 内部で事前にResultを算出・記録（学生にはRESULTS_RELEASEDまで非公開）
+    // 内部で事前にResultを算出・記録（自習モードでは即座に公開、授業モードではRESULTS_RELEASEDまで非公開）
     sceneState.result = evaluateSceneResult(sid, sceneState.selectedInfo, finalDecisionId, cleanedRationale, finalSelectedDecisions);
 
     socket.emit('game-state-updated', buildClientPayload(groupState));
@@ -1048,7 +1066,71 @@ io.on('connection', (socket) => {
     console.log(`[Student] Submitted by ${groupState.groupName} for Scene ${sid}: decision=${finalDecisionId} (${cleanedRationale.length} chars)`);
   });
 
+  // 個人復習（自習）モード用の学生側進行イベント
+  socket.on('self-study-resolve-scene', (data) => {
+    if (!selfStudyMode) return;
+    const { groupId, sceneId } = data || {};
+    if (!groups.has(groupId)) return;
+    const groupState = groups.get(groupId);
+    const sid = parseInt(sceneId || groupState.currentScene);
+    if (groupState.scenes[sid]) {
+      groupState.scenes[sid].phase = 'resolved';
+      socket.emit('game-state-updated', buildClientPayload(groupState));
+      io.emit('admin-summary-updated', buildAdminSummary());
+    }
+  });
+
+  socket.on('self-study-next-scene', (data) => {
+    if (!selfStudyMode) return;
+    const { groupId } = data || {};
+    if (!groups.has(groupId)) return;
+    const groupState = groups.get(groupId);
+    const nextSid = groupState.currentScene + 1;
+    if (nextSid <= 4) {
+      groupState.currentScene = nextSid;
+      if (groupState.scenes[nextSid].phase !== 'submitted' && groupState.scenes[nextSid].phase !== 'result' && groupState.scenes[nextSid].phase !== 'resolved') {
+        groupState.scenes[nextSid].phase = 'assessment';
+      }
+      socket.emit('game-state-updated', buildClientPayload(groupState));
+      io.emit('admin-summary-updated', buildAdminSummary());
+    }
+  });
+
+  socket.on('self-study-restart', (data) => {
+    if (!selfStudyMode) return;
+    const { groupId } = data || {};
+    if (!groups.has(groupId)) return;
+    const groupState = groups.get(groupId);
+    groupState.currentScene = 1;
+    groupState.scenes = {
+      1: createSceneState(1),
+      2: createSceneState(2),
+      3: createSceneState(3),
+      4: createSceneState(4)
+    };
+    socket.emit('self-study-restarted');
+    socket.emit('game-state-updated', buildClientPayload(groupState));
+    io.emit('admin-summary-updated', buildAdminSummary());
+    console.log(`[Student] Self-study restarted by ${groupState.groupName} (${groupId})`);
+  });
+
   // 教員管理画面
+  socket.on('admin-toggle-self-study-mode', (data) => {
+    selfStudyMode = data?.enabled !== undefined ? !!data.enabled : !selfStudyMode;
+    if (selfStudyMode) {
+      // 自習モードON時、待機中（submitted）だったグループをResult表示状態に進める
+      groups.forEach(g => {
+        for (let i = 1; i <= 4; i++) {
+          if (g.scenes[i].phase === 'submitted') {
+            g.scenes[i].phase = 'result';
+          }
+        }
+      });
+    }
+    io.emit('mode-status', { selfStudyMode });
+    broadcastGroupUpdates();
+    console.log(`[Admin] Self-Study Mode is now ${selfStudyMode ? 'ON' : 'OFF'}`);
+  });
   socket.on('admin-login', (data) => {
     const password = typeof data === 'string' ? data : data?.password;
     if (FALLBACK_PASSWORDS.includes(password)) {
