@@ -152,33 +152,34 @@
       );
     });
 
-    // 個人復習（自習）モード切替ボタン
-    const btnToggleSelfStudy = document.getElementById('btn-toggle-self-study');
-    if (btnToggleSelfStudy) {
-      btnToggleSelfStudy.addEventListener('click', () => {
-        const currentMode = !!(summaryData && summaryData.selfStudyMode);
-        const nextMode = !currentMode;
-        if (nextMode) {
-          showModal(
-            '📚 個人復習（自習）モードへの切り替え',
-            '「個人復習（自習）モード」をONにしますか？\n\n・学生は回答送信後、待機画面で止まらずに即座にResultと模範例を確認できるようになります。\n・学生自身が「次のSceneへ進む」「最初からもう一度挑戦する（リセット）」ボタンを使って、1人で何度でも最初から最後まで復習できるようになります。',
-            () => {
-              socket.emit('admin-toggle-self-study-mode', { enabled: true });
-              showToast('📚 個人復習（自習）モードをONにしました');
-            }
-          );
-        } else {
-          showModal(
-            '👨‍🏫 授業連動モードへの切り替え',
-            '「授業連動モード（教員の操作で一斉進行）」に戻しますか？',
-            () => {
-              socket.emit('admin-toggle-self-study-mode', { enabled: false });
-              showToast('👨‍🏫 授業連動モードに戻しました');
-            }
-          );
-        }
-      });
-    }
+    // 個人復習（自習）モード切替ボタン（ヘッダー＆制御タブ両方）
+    const handleToggleSelfStudy = () => {
+      const currentMode = !!(summaryData && summaryData.selfStudyMode);
+      const nextMode = !currentMode;
+      if (nextMode) {
+        showModal(
+          '📚 個人復習（自習）モードへの切り替え',
+          '「個人復習（自習）モード」をONにしますか？\n\n・学生は回答送信後、待機画面で止まらずに即座にResultと模範例を確認できるようになります。\n・学生自身が「次のSceneへ進む」「最初からもう一度挑戦する（リセット）」ボタンを使って、1人で何度でも最初から最後まで復習できるようになります。',
+          () => {
+            socket.emit('admin-toggle-self-study-mode', { enabled: true });
+            showToast('📚 個人復習（自習）モードをONにしました');
+          }
+        );
+      } else {
+        showModal(
+          '👨‍🏫 授業連動モードへの切り替え',
+          '「授業連動モード（教員の操作で一斉進行）」に戻しますか？',
+          () => {
+            socket.emit('admin-toggle-self-study-mode', { enabled: false });
+            showToast('👨‍🏫 授業連動モードに戻しました');
+          }
+        );
+      }
+    };
+    ['btn-toggle-self-study', 'btn-toggle-self-study-header'].forEach(btnId => {
+      const el = document.getElementById(btnId);
+      if (el) el.addEventListener('click', handleToggleSelfStudy);
+    });
   }
 
   function handleLogin() {
@@ -228,6 +229,18 @@
     const badge = document.getElementById('self-study-status-badge');
     const desc = document.getElementById('self-study-status-desc');
     const btn = document.getElementById('btn-toggle-self-study');
+    const headerBtn = document.getElementById('btn-toggle-self-study-header');
+
+    if (headerBtn) {
+      if (isSelfStudy) {
+        headerBtn.className = 'btn btn-success';
+        headerBtn.textContent = '📚 個人復習モード：ON（クリックで授業モードへ戻す）';
+      } else {
+        headerBtn.className = 'btn btn-primary';
+        headerBtn.textContent = '📚 個人復習モード：OFF（クリックでONにする）';
+      }
+    }
+
     if (!card || !badge || !desc || !btn) return;
 
     if (isSelfStudy) {

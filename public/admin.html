@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>教員管理画面 — 第4回 肺がん患者の看護 Clinical Reasoning Simulation</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style.css?v=20261028">
 </head>
 <body class="admin-body">
   <!-- ログイン画面 -->
@@ -30,6 +30,7 @@
         <h1>第4回「肺がん患者の看護」Clinical Reasoning Simulation — 教員管理</h1>
       </div>
       <div class="admin-header-actions">
+        <button id="btn-toggle-self-study-header" class="btn btn-primary">📚 個人復習モード：OFF（クリックでON）</button>
         <button id="btn-debrief-mode" class="btn btn-warning">📢 プロジェクター投影用 Debrief Mode</button>
         <button id="btn-refresh" class="btn btn-secondary">🔄 更新</button>
         <button id="btn-admin-reset" class="btn btn-danger">⚠️ 全データ初期化</button>
@@ -46,6 +47,22 @@
 
       <!-- 1. Scene進行制御タブ -->
       <div id="tab-control" class="admin-tab-content active">
+        <!-- 授業連動モード ⇄ 授業後・個人復習（自習）モード切替カード（最上部に配置） -->
+        <div id="self-study-mode-card" class="connect-guide-card" style="border-left: 5px solid #2b6cb0; margin-bottom: 18px;">
+          <div class="connect-guide-info">
+            <span id="self-study-status-badge" class="badge-connect" style="background:#2b6cb0;">👨‍🏫 現在：授業連動モード（教員の操作で一斉進行）</span>
+            <h3 style="margin-top:8px;">進行モード切替（授業連動モード ⇄ 授業後・個人復習モード）</h3>
+            <p id="self-study-status-desc" class="connect-url-lead" style="margin-bottom:0;">
+              授業終了後に「📚 個人復習（自習）モード」をONにすると、学生は教員の操作を待たずに1人でSCENE 1〜4を最後まで進めることができ、自分の端末で何度でも最初からやり直して復習できるようになります。
+            </p>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:center; min-width:260px;">
+            <button id="btn-toggle-self-study" class="btn btn-primary" style="padding:12px 18px; font-weight:bold;">
+              📚 個人復習（自習）モードをONにする
+            </button>
+          </div>
+        </div>
+
         <!-- 学生アクセス用QRコード＆URLカード -->
         <div class="connect-guide-card">
           <div class="connect-guide-info">
@@ -61,22 +78,6 @@
           <div class="connect-guide-qr">
             <img id="qr-code-img" src="" alt="学生アクセス用QRコード" style="display:none; width: 140px; height: 140px; border-radius: 6px;">
             <div id="qr-loading-text" class="text-muted" style="font-size: 0.85rem;">QRコード生成中...</div>
-          </div>
-        </div>
-
-        <!-- 授業連動モード ⇄ 授業後・個人復習（自習）モード切替カード -->
-        <div id="self-study-mode-card" class="connect-guide-card" style="border-left: 5px solid #2b6cb0; margin-bottom: 18px;">
-          <div class="connect-guide-info">
-            <span id="self-study-status-badge" class="badge-connect" style="background:#2b6cb0;">👨‍🏫 現在：授業連動モード（教員の操作で一斉進行）</span>
-            <h3 style="margin-top:8px;">進行モード切替（授業連動モード ⇄ 授業後・個人復習モード）</h3>
-            <p id="self-study-status-desc" class="connect-url-lead" style="margin-bottom:0;">
-              授業終了後に「📚 個人復習（自習）モード」をONにすると、学生は教員の操作を待たずに1人でSCENE 1〜4を最後まで進めることができ、自分の端末で何度でも最初からやり直して復習できるようになります。
-            </p>
-          </div>
-          <div style="display:flex; align-items:center; justify-content:center; min-width:260px;">
-            <button id="btn-toggle-self-study" class="btn btn-primary" style="padding:12px 18px; font-weight:bold;">
-              📚 個人復習（自習）モードをONにする
-            </button>
           </div>
         </div>
 
@@ -174,6 +175,6 @@
   <div id="admin-toast" class="toast"></div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin.js?v=20261028"></script>
 </body>
 </html>
